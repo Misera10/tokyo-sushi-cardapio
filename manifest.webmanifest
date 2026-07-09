@@ -1,0 +1,16 @@
+{
+  "name": "Tokyo Sushi",
+  "short_name": "Tokyo",
+  "start_url": "./index.html?v=14",
+  "display": "standalone",
+  "background_color": "#f6ecdf",
+  "theme_color": "#12090b",
+  "icons": [
+    {
+      "src": "assets/tokyo-logo-instagram.jpg",
+      "sizes": "150x150",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

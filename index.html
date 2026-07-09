@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12090b">
+  <title>Tokyo Sushi</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css?v=14">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-hero">
+      <img class="brand-logo" src="assets/tokyo-logo-instagram.jpg" alt="Tokyo Sushi">
+      <p class="eyebrow">Retirada no balcão</p>
+      <h1>Tokyo Sushi</h1>
+      <p class="sub">Monte seu pedido e envie direto pelo WhatsApp.</p>
+    </div>
+    <button class="install" id="installBtn" hidden>Baixar app</button>
+  </header>
+
+  <main class="layout">
+    <section class="menu">
+      <div class="store">
+        <div>
+          <img class="store-logo" src="assets/tokyo-logo-instagram.jpg" alt="">
+          <strong id="storeStatus">Retirada no balcão</strong>
+          <span id="storeHours">18:00 às 23:00</span>
+          <span id="storeAddress">Rua Beco do Pereira - Chácara Viana</span>
+        </div>
+        <div class="store-actions">
+          <a id="mapsTop" href="#" target="_blank" rel="noopener">Localização</a>
+          <a id="whatsTop" href="#" target="_blank" rel="noopener">Contato</a>
+          <a id="instagramTop" href="https://www.instagram.com/tokyosushituntum/" target="_blank" rel="noopener">Instagram</a>
+        </div>
+      </div>
+
+      <div class="quick-info">
+        <span>Pronto em ~25 min</span>
+        <span>Pedido via WhatsApp</span>
+      </div>
+
+      <label class="search-box">
+        Buscar no cardápio
+        <input id="menuSearch" type="search" autocomplete="off" placeholder="Ex: hot, combo, salmão">
+      </label>
+
+      <nav class="categories" id="categories" aria-label="Categorias do cardápio"></nav>
+      <div class="products" id="products"></div>
+    </section>
+
+    <aside class="cart">
+      <div class="cart-head">
+        <h2>Pedido</h2>
+        <button id="clearCart" class="ghost">Limpar</button>
+      </div>
+      <div id="cartItems" class="cart-items"></div>
+
+      <form id="orderForm" class="order-form">
+        <label>
+          Nome
+          <input id="customerName" autocomplete="name" placeholder="Nome para retirada">
+        </label>
+        <label>
+          Celular/WhatsApp
+          <input id="customerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(99) 99999-9999">
+        </label>
+        <label>
+          Pagamento
+          <select id="paymentMethod">
+            <option>Pix</option>
+            <option>Cartão na retirada</option>
+            <option>Dinheiro</option>
+          </select>
+        </label>
+        <label>
+          Observações
+          <textarea id="notes" rows="3" placeholder="Ex: sem cream cheese, pouco shoyu"></textarea>
+        </label>
+      </form>
+
+      <div class="total">
+        <span>Total</span>
+        <strong id="totalValue">R$ 0,00</strong>
+      </div>
+      <button id="sendOrder" class="primary">Enviar Pedido</button>
+      <p class="hint">A loja confirma o recebimento e avisa quando estiver pronto pelo WhatsApp informado.</p>
+    </aside>
+  </main>
+
+  <button id="mobileCartBar" class="mobile-cart-bar" hidden>
+    <span id="mobileCartCount">0 itens</span>
+    <strong id="mobileCartTotal">R$ 0,00</strong>
+  </button>
+
+  <template id="productTemplate">
+    <article class="product">
+      <div class="photo"></div>
+      <div class="product-body">
+        <div>
+          <p class="tag"></p>
+          <h3></h3>
+          <p class="desc"></p>
+        </div>
+        <div class="product-bottom">
+          <strong class="price"></strong>
+          <button class="add">Adicionar</button>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <script src="config.js?v=16"></script>
+  <script src="db.js?v=16"></script>
+  <script src="menu-data.js?v=16"></script>
+  <script src="app.js?v=16"></script>
+</body>
+</html>

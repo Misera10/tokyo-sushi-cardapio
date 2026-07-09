@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin - Tokyo Sushi</title>
+  <link rel="stylesheet" href="admin.css?v=1">
+</head>
+<body>
+  <header class="admin-top">
+    <div>
+      <strong>Tokyo Sushi</strong>
+      <span>Administração</span>
+    </div>
+    <a href="index.html?v=14" target="_blank" rel="noopener">Abrir cardápio</a>
+  </header>
+
+  <main class="admin-shell">
+    <section class="metrics" id="metrics"></section>
+
+    <nav class="tabs" aria-label="Módulos">
+      <button class="active" data-tab="orders">Pedidos</button>
+      <button data-tab="menu">Cardápio</button>
+      <button data-tab="reports">Relatórios</button>
+      <button data-tab="marketing">Marketing</button>
+      <button data-tab="settings">Configurações</button>
+    </nav>
+
+    <section class="panel active" id="ordersPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Pedidos</h1>
+          <p>Controle operacional dos pedidos recebidos pelo cardápio.</p>
+        </div>
+        <button class="ghost" id="clearDone">Limpar finalizados</button>
+      </div>
+      <div class="orders-list" id="ordersList"></div>
+    </section>
+
+    <section class="panel" id="menuPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Cardápio</h1>
+          <p>Edite produtos, preços, imagens e disponibilidade.</p>
+        </div>
+        <div class="actions">
+          <button class="ghost" id="resetMenu">Restaurar original</button>
+          <button class="primary" id="addProduct">Novo item</button>
+        </div>
+      </div>
+      <div class="menu-editor" id="menuEditor"></div>
+    </section>
+
+    <section class="panel" id="reportsPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Relatórios</h1>
+          <p>Resumo de vendas e produtos mais vendidos.</p>
+        </div>
+      </div>
+      <div class="report-grid" id="reports"></div>
+    </section>
+
+    <section class="panel" id="marketingPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Marketing</h1>
+          <p>Cadastre mensagens rápidas, cupons e promoções.</p>
+        </div>
+      </div>
+      <form class="marketing-form" id="promoForm">
+        <input id="promoTitle" placeholder="Nome da promoção">
+        <textarea id="promoText" rows="4" placeholder="Mensagem para enviar aos clientes"></textarea>
+        <button class="primary">Salvar promoção</button>
+      </form>
+      <div class="promo-list" id="promoList"></div>
+    </section>
+
+    <section class="panel" id="settingsPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Configurações</h1>
+          <p>Próximas integrações planejadas para a operação.</p>
+        </div>
+      </div>
+      <div class="settings-grid">
+        <article><strong>WhatsApp automático</strong><span>Pedido recebido, pronto para retirada e recuperação de carrinho.</span></article>
+        <article><strong>Impressora</strong><span>Integração futura com impressão de pedidos na cozinha.</span></article>
+        <article><strong>Banco de dados online</strong><span>Pedidos e cardápio sincronizados em todos os dispositivos.</span></article>
+        <article><strong>Usuários</strong><span>Acesso para atendente, cozinha e administrador.</span></article>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js?v=16"></script>
+  <script src="db.js?v=16"></script>
+  <script src="menu-data.js?v=16"></script>
+  <script src="admin.js?v=16"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tokyo Sushi">
+  <rect width="512" height="512" rx="92" fill="#070709"/>
+  <circle cx="256" cy="208" r="122" fill="#fff8ee"/>
+  <circle cx="256" cy="208" r="78" fill="#d71920"/>
+  <circle cx="228" cy="184" r="22" fill="#fff8ee"/>
+  <circle cx="292" cy="238" r="28" fill="#0b8a61"/>
+  <path d="M118 314h276" stroke="#d3a84a" stroke-width="18" stroke-linecap="round"/>
+  <text x="256" y="382" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="58" fill="#fff8ee" letter-spacing="2">TOKYO</text>
+  <text x="256" y="436" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="48" fill="#d71920" letter-spacing="3">SUSHI</text>
+</svg>
