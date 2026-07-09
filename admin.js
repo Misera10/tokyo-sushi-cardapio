@@ -4,6 +4,7 @@ const STORE = window.TOKYO_DATA.store;
 const money = value => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const byId = id => document.getElementById(id);
 const todayKey = () => new Date().toISOString().slice(0, 10);
+const ADMIN_SESSION_KEY = "tokyoAdminUnlocked";
 
 let menu = JSON.parse(localStorage.getItem("tokyoMenu") || "null") || DEFAULT_MENU.map(item => ({ ...item, active: item.active !== false }));
 let orders = JSON.parse(localStorage.getItem("tokyoOrders") || "[]");
@@ -293,4 +294,34 @@ document.body.addEventListener("input", event => {
   scheduleProductSave(Number(event.target.dataset.index));
 });
 
-loadOnlineData().then(renderAll);
+function unlockAdmin() {
+  document.body.classList.remove("admin-locked");
+  loadOnlineData().then(renderAll);
+}
+
+function initAdminLogin() {
+  const password = window.TOKYO_CONFIG?.adminPassword || "tokyo2026";
+  if (sessionStorage.getItem(ADMIN_SESSION_KEY) === "1") {
+    unlockAdmin();
+    return;
+  }
+
+  byId("loginForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const typed = byId("adminPassword").value.trim();
+    if (typed !== password) {
+      byId("loginMessage").textContent = "Senha incorreta.";
+      byId("adminPassword").select();
+      return;
+    }
+    sessionStorage.setItem(ADMIN_SESSION_KEY, "1");
+    unlockAdmin();
+  });
+}
+
+byId("logoutAdmin").addEventListener("click", () => {
+  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  location.reload();
+});
+
+initAdminLogin();

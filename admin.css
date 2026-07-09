@@ -50,6 +50,67 @@ button { cursor: pointer; }
   font-weight: 900;
   text-decoration: none;
 }
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.top-actions button {
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: white;
+  background: rgba(255,255,255,.08);
+  font-weight: 900;
+}
+
+.admin-locked .admin-content { display: none; }
+.login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background:
+    linear-gradient(135deg, rgba(17,9,10,.92), rgba(72,10,15,.82)),
+    var(--bg);
+}
+body:not(.admin-locked) .login-screen { display: none; }
+.login-card {
+  width: min(430px, 100%);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 16px;
+  padding: 28px;
+  color: white;
+  background: rgba(12,8,8,.92);
+  box-shadow: 0 24px 80px rgba(0,0,0,.35);
+}
+.login-card strong {
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.login-card h1 {
+  margin-top: 10px;
+}
+.login-card p {
+  margin-bottom: 18px;
+  color: #ead2ac;
+}
+.login-card input {
+  margin-bottom: 10px;
+  border-color: rgba(255,255,255,.22);
+  color: white;
+  background: rgba(255,255,255,.08);
+}
+.login-card input::placeholder { color: rgba(255,255,255,.6); }
+.login-card button { width: 100%; }
+.login-card small {
+  display: block;
+  min-height: 18px;
+  margin-top: 10px;
+  color: #ffb4b4;
+  font-weight: 800;
+}
 
 .admin-shell {
   width: min(1180px, calc(100% - 24px));

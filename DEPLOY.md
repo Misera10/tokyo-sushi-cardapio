@@ -17,6 +17,7 @@ Edite `config.js`:
 window.TOKYO_CONFIG = {
   supabaseUrl: "https://SEU-PROJETO.supabase.co",
   supabaseAnonKey: "SUA_CHAVE_PUBLICAVEL_ANON",
+  adminPassword: "SENHA_DO_ADMIN",
   tables: {
     products: "tokyo_products",
     orders: "tokyo_orders",
@@ -39,7 +40,11 @@ window.TOKYO_CONFIG = {
 - Cardápio: `/`
 - Admin: `/admin.html`
 
+Senha inicial do admin neste projeto: `tokyo2026`.
+Para trocar, edite `adminPassword` em `config.js`.
+
 ## Importante
 
-As regras do Supabase estão abertas para teste do MVP.
-Antes de usar oficialmente, o admin precisa de login e políticas fechadas.
+A tela do admin tem senha simples para teste e operação inicial.
+As regras do Supabase ainda estão abertas para o MVP.
+Antes de usar oficialmente em escala, troque por login real e políticas fechadas.

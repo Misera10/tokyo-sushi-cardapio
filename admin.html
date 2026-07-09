@@ -4,18 +4,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin - Tokyo Sushi</title>
-  <link rel="stylesheet" href="admin.css?v=1">
+  <link rel="stylesheet" href="admin.css?v=17">
 </head>
-<body>
-  <header class="admin-top">
+<body class="admin-locked">
+  <section class="login-screen" id="loginScreen">
+    <form class="login-card" id="loginForm">
+      <strong>Tokyo Sushi</strong>
+      <h1>Administração</h1>
+      <p>Entre para acessar pedidos, cardápio e relatórios.</p>
+      <input id="adminPassword" type="password" placeholder="Senha do admin" autocomplete="current-password">
+      <button class="primary">Entrar</button>
+      <small id="loginMessage"></small>
+    </form>
+  </section>
+
+  <header class="admin-top admin-content">
     <div>
       <strong>Tokyo Sushi</strong>
       <span>Administração</span>
     </div>
-    <a href="index.html?v=14" target="_blank" rel="noopener">Abrir cardápio</a>
+    <div class="top-actions">
+      <a href="index.html?v=17" target="_blank" rel="noopener">Abrir cardápio</a>
+      <button id="logoutAdmin">Sair</button>
+    </div>
   </header>
 
-  <main class="admin-shell">
+  <main class="admin-shell admin-content">
     <section class="metrics" id="metrics"></section>
 
     <nav class="tabs" aria-label="Módulos">
@@ -92,9 +106,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=16"></script>
-  <script src="db.js?v=16"></script>
-  <script src="menu-data.js?v=16"></script>
-  <script src="admin.js?v=16"></script>
+  <script src="config.js?v=17"></script>
+  <script src="db.js?v=17"></script>
+  <script src="menu-data.js?v=17"></script>
+  <script src="admin.js?v=17"></script>
 </body>
 </html>
