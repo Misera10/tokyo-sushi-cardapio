@@ -29,9 +29,21 @@ create table if not exists tokyo_promos (
   created_at timestamptz not null default now()
 );
 
+create table if not exists tokyo_complements (
+  id bigint primary key,
+  name text not null default '',
+  min_qty integer not null default 0,
+  max_qty integer not null default 100,
+  active boolean not null default true,
+  linked_product_ids jsonb not null default '[]'::jsonb,
+  items jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 alter table tokyo_products enable row level security;
 alter table tokyo_orders enable row level security;
 alter table tokyo_promos enable row level security;
+alter table tokyo_complements enable row level security;
 
 drop policy if exists "public tokyo products read" on tokyo_products;
 drop policy if exists "public tokyo products write" on tokyo_products;
@@ -39,6 +51,8 @@ drop policy if exists "public tokyo orders read" on tokyo_orders;
 drop policy if exists "public tokyo orders write" on tokyo_orders;
 drop policy if exists "public tokyo promos read" on tokyo_promos;
 drop policy if exists "public tokyo promos write" on tokyo_promos;
+drop policy if exists "public tokyo complements read" on tokyo_complements;
+drop policy if exists "public tokyo complements write" on tokyo_complements;
 
 -- Politicas abertas para TESTE do MVP.
 -- Antes de uso oficial, troque por login/admin protegido.
@@ -50,3 +64,6 @@ create policy "public tokyo orders write" on tokyo_orders for all using (true) w
 
 create policy "public tokyo promos read" on tokyo_promos for select using (true);
 create policy "public tokyo promos write" on tokyo_promos for all using (true) with check (true);
+
+create policy "public tokyo complements read" on tokyo_complements for select using (true);
+create policy "public tokyo complements write" on tokyo_complements for all using (true) with check (true);

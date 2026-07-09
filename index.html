@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12090b">
   <title>Tokyo Sushi</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=18">
 </head>
 <body>
   <header class="topbar">
@@ -93,6 +93,22 @@
     <strong id="mobileCartTotal">R$ 0,00</strong>
   </button>
 
+  <section class="modal" id="complementModal" hidden>
+    <div class="modal-card">
+      <button class="modal-close" id="closeComplementModal" type="button" aria-label="Fechar">×</button>
+      <div class="modal-product">
+        <div class="modal-photo" id="modalProductImage"></div>
+        <div>
+          <h2 id="modalProductName"></h2>
+          <p id="modalProductDesc"></p>
+          <strong id="modalProductPrice"></strong>
+        </div>
+      </div>
+      <div class="modal-options" id="modalComplements"></div>
+      <button class="primary" id="addWithComplements" type="button">Adicionar ao pedido</button>
+    </div>
+  </section>
+
   <template id="productTemplate">
     <article class="product">
       <div class="photo"></div>
@@ -110,9 +126,9 @@
     </article>
   </template>
 
-  <script src="config.js?v=17"></script>
-  <script src="db.js?v=17"></script>
-  <script src="menu-data.js?v=17"></script>
-  <script src="app.js?v=17"></script>
+  <script src="config.js?v=18"></script>
+  <script src="db.js?v=18"></script>
+  <script src="menu-data.js?v=18"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

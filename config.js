@@ -5,6 +5,7 @@ window.TOKYO_CONFIG = {
   tables: {
     products: "tokyo_products",
     orders: "tokyo_orders",
-    promos: "tokyo_promos"
+    promos: "tokyo_promos",
+    complements: "tokyo_complements"
   }
 };

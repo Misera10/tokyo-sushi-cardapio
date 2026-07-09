@@ -4,6 +4,7 @@
     products: "tokyo_products",
     orders: "tokyo_orders",
     promos: "tokyo_promos",
+    complements: "tokyo_complements",
     ...(cfg.tables || {})
   };
   const enabled = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey);
@@ -81,6 +82,30 @@
     };
   }
 
+  function complementFromDb(row) {
+    return {
+      id: row.id,
+      name: row.name || "",
+      minQty: Number(row.min_qty || 0),
+      maxQty: Number(row.max_qty || 100),
+      active: row.active !== false,
+      linkedProductIds: row.linked_product_ids || [],
+      items: row.items || []
+    };
+  }
+
+  function complementToDb(group) {
+    return {
+      id: Number(group.id),
+      name: group.name || "Lista de complemento",
+      min_qty: Number(group.minQty || 0),
+      max_qty: Number(group.maxQty || 100),
+      active: group.active !== false,
+      linked_product_ids: group.linkedProductIds || [],
+      items: group.items || []
+    };
+  }
+
   window.TokyoDb = {
     enabled,
     async loadMenu(defaultMenu) {
@@ -141,6 +166,23 @@
     async deletePromo(id) {
       if (!enabled) return;
       await request(`${tables.promos}?id=eq.${id}`, { method: "DELETE", prefer: "return=minimal" });
+    },
+    async loadComplements() {
+      if (!enabled) return [];
+      const rows = await request(`${tables.complements}?select=*&order=id.asc`);
+      return rows.map(complementFromDb);
+    },
+    async saveComplement(group) {
+      if (!enabled) return;
+      await request(tables.complements, {
+        method: "POST",
+        body: complementToDb(group),
+        prefer: "resolution=merge-duplicates,return=minimal"
+      });
+    },
+    async deleteComplement(id) {
+      if (!enabled) return;
+      await request(`${tables.complements}?id=eq.${id}`, { method: "DELETE", prefer: "return=minimal" });
     }
   };
 })();

@@ -1,10 +1,13 @@
 const STORE = window.TOKYO_DATA.store;
 const DEFAULT_MENU = window.TOKYO_DATA.menu;
 let MENU = JSON.parse(localStorage.getItem("tokyoMenu") || "null") || DEFAULT_MENU;
+let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "[]");
 
 let searchTerm = "";
 let cart = JSON.parse(localStorage.getItem("sushiCart") || "{}");
 let deferredPrompt = null;
+let pendingProduct = null;
+let pendingOptions = {};
 
 const byId = id => document.getElementById(id);
 const money = value => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -15,6 +18,13 @@ const cleanText = value => String(value || "")
   .replace(/salmão,cream/gi, "Salmão, cream")
   .trim();
 const normalizePhone = value => value.replace(/\D/g, "");
+const escapeHtml = value => String(value || "").replace(/[&<>"']/g, char => ({
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;"
+}[char]));
 
 function formatPhone(value) {
   const digits = normalizePhone(value).slice(0, 11);
@@ -26,6 +36,19 @@ function formatPhone(value) {
 function cartLines() {
   if (Array.isArray(cart)) return cart;
   return Object.keys(cart).map(id => ({ id, qty: cart[id], options: [] }));
+}
+
+function lineUnitExtra(line) {
+  return (line.options || []).reduce((sum, option) => sum + Number(option.price || 0) * Number(option.qty || 0), 0);
+}
+
+function lineUnitPrice(line, item) {
+  return Number(item?.price || 0) + Number(line.unitExtra ?? lineUnitExtra(line));
+}
+
+function optionText(option) {
+  if (typeof option === "string") return cleanText(option);
+  return `${option.qty || 1}x ${cleanText(option.name)}${option.price ? ` (+${money(Number(option.price) * Number(option.qty || 1))})` : ""}`;
 }
 
 function setCart(lines) {
@@ -43,11 +66,21 @@ async function loadMenuFromDb() {
   }
 }
 
+async function loadComplementsFromDb() {
+  if (!window.TokyoDb?.enabled) return;
+  try {
+    complementGroups = await window.TokyoDb.loadComplements();
+    localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
+  } catch (error) {
+    console.warn("Falha ao carregar complementos online. Usando cache local.", error);
+  }
+}
+
 async function saveOrder() {
   const lines = cartLines();
   const total = lines.reduce((sum, line) => {
     const item = MENU.find(product => String(product.id) === String(line.id));
-    return item ? sum + item.price * line.qty : sum;
+    return item ? sum + lineUnitPrice(line, item) * line.qty : sum;
   }, 0);
   const order = {
     id: Date.now(),
@@ -63,7 +96,8 @@ async function saveOrder() {
       return {
         id: line.id,
         name: item ? cleanText(item.name) : "Item removido",
-        price: item ? item.price : 0,
+        price: item ? lineUnitPrice(line, item) : 0,
+        basePrice: item ? item.price : 0,
         qty: line.qty,
         options: line.options || []
       };
@@ -79,6 +113,15 @@ async function saveOrder() {
       console.warn("Pedido salvo localmente, mas falhou no banco online.", error);
     }
   }
+}
+
+function productComplements(productId) {
+  return complementGroups.filter(group =>
+    group.active !== false &&
+    Array.isArray(group.linkedProductIds) &&
+    group.linkedProductIds.map(String).includes(String(productId)) &&
+    (group.items || []).some(item => item.active !== false)
+  );
 }
 
 
@@ -163,7 +206,7 @@ function renderCart() {
   const count = lines.reduce((sum, line) => sum + line.qty, 0);
   const total = lines.reduce((sum, line) => {
     const item = MENU.find(product => String(product.id) === String(line.id));
-    return item ? sum + item.price * line.qty : sum;
+    return item ? sum + lineUnitPrice(line, item) * line.qty : sum;
   }, 0);
 
   byId("totalValue").textContent = money(total);
@@ -180,11 +223,17 @@ function renderCart() {
   byId("cartItems").innerHTML = lines.map((line, index) => {
     const item = MENU.find(product => String(product.id) === String(line.id));
     if (!item) return "";
-    const options = line.options?.length ? `<small>${line.options.map(cleanText).join(", ")}</small>` : "";
+    const options = line.options?.length ? `<small>${line.options.map(optionText).join("<br>")}</small>` : "";
+    const unit = lineUnitPrice(line, item);
     return `
       <div class="cart-row">
         <div>
-          <strong>${cleanText(item.name)}</strong>
+          <div class="cart-title">
+            <strong>${cleanText(item.name)}</strong>
+            <button type="button" class="trash-btn" data-remove-line="${index}" aria-label="Remover item">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2l1 11h4l1-11h2l-1 13H8L7 9Z"/></svg>
+            </button>
+          </div>
           ${options}
           <div class="qty">
             <button type="button" data-minus="${index}" aria-label="Remover uma unidade">-</button>
@@ -192,19 +241,20 @@ function renderCart() {
             <button type="button" data-plus="${index}" aria-label="Adicionar uma unidade">+</button>
           </div>
         </div>
-        <strong>${money(item.price * line.qty)}</strong>
+        <strong>${money(unit * line.qty)}</strong>
       </div>
     `;
   }).join("");
 }
 
-function addItem(id, amount) {
+function addItem(id, amount, options = []) {
   const lines = cartLines();
-  const existing = lines.find(line => String(line.id) === String(id));
+  const optionKey = JSON.stringify(options.map(option => [option.groupId, option.itemId, option.qty]).sort());
+  const existing = lines.find(line => String(line.id) === String(id) && (line.optionKey || "[]") === optionKey);
   if (existing) {
     existing.qty = Math.max(0, existing.qty + amount);
   } else if (amount > 0) {
-    lines.push({ id, qty: amount, options: [] });
+    lines.push({ id, qty: amount, options, unitExtra: options.reduce((sum, option) => sum + Number(option.price || 0) * Number(option.qty || 0), 0), optionKey });
   }
   setCart(lines);
   renderCart();
@@ -214,6 +264,13 @@ function updateCartLine(index, amount) {
   const lines = cartLines();
   if (!lines[index]) return;
   lines[index].qty = Math.max(0, lines[index].qty + amount);
+  setCart(lines);
+  renderCart();
+}
+
+function removeCartLine(index) {
+  const lines = cartLines();
+  lines.splice(index, 1);
   setCart(lines);
   renderCart();
 }
@@ -238,15 +295,109 @@ function buildMessage() {
   cartLines().forEach(line => {
     const item = MENU.find(product => String(product.id) === String(line.id));
     if (!item) return;
-    const subtotal = item.price * line.qty;
+    const subtotal = lineUnitPrice(line, item) * line.qty;
     total += subtotal;
     lines.push(`${line.qty}x ${cleanText(item.name)} - ${money(subtotal)}`);
-    if (line.options?.length) lines.push(`   Complementos: ${line.options.map(cleanText).join(", ")}`);
+    if (line.options?.length) {
+      lines.push(`   Complementos: ${line.options.map(option => typeof option === "string" ? cleanText(option) : `${option.qty}x ${cleanText(option.name)}`).join(", ")}`);
+    }
   });
 
   lines.push("", `Total: ${money(total)}`);
   if (notes) lines.push(`Observação: ${notes}`);
   return lines.join("\n");
+}
+
+function openComplementModal(productId) {
+  const product = MENU.find(item => String(item.id) === String(productId));
+  const groups = productComplements(productId);
+  if (!product || !groups.length) {
+    addItem(productId, 1);
+    return;
+  }
+
+  pendingProduct = product;
+  pendingOptions = {};
+  const modal = byId("complementModal");
+  byId("modalProductName").textContent = cleanText(product.name);
+  byId("modalProductDesc").textContent = cleanText(product.desc);
+  byId("modalProductPrice").textContent = money(product.price);
+  byId("modalProductImage").style.backgroundImage = product.image ? `url("${product.image}")` : "";
+  byId("modalComplements").innerHTML = groups.map(group => {
+    const activeItems = (group.items || []).filter(item => item.active !== false);
+    return `
+      <section class="option-group" data-group-id="${group.id}">
+        <h3>${escapeHtml(cleanText(group.name))} <span>${group.minQty ? "obrigatório" : "opcional"} 0/${group.maxQty || 100}</span></h3>
+        ${activeItems.map(item => `
+          <div class="option-row">
+            <div>
+              <strong>${escapeHtml(cleanText(item.name))}</strong>
+              <span>${money(Number(item.price || 0))}</span>
+            </div>
+            <div class="qty option-qty">
+              <button type="button" data-option-minus="${group.id}:${item.id}">-</button>
+              <span data-option-count="${group.id}:${item.id}">0</span>
+              <button type="button" data-option-plus="${group.id}:${item.id}">+</button>
+            </div>
+          </div>
+        `).join("")}
+      </section>
+    `;
+  }).join("");
+  byId("addWithComplements").disabled = false;
+  modal.hidden = false;
+}
+
+function closeComplementModal() {
+  byId("complementModal").hidden = true;
+  pendingProduct = null;
+  pendingOptions = {};
+}
+
+function selectedGroupTotal(groupId) {
+  return Object.entries(pendingOptions)
+    .filter(([key]) => key.startsWith(`${groupId}:`))
+    .reduce((sum, [, qty]) => sum + qty, 0);
+}
+
+function updateOption(key, amount) {
+  const [groupId] = key.split(":");
+  const group = complementGroups.find(item => String(item.id) === String(groupId));
+  const max = Number(group?.maxQty || 100);
+  const currentGroupTotal = selectedGroupTotal(groupId);
+  const current = pendingOptions[key] || 0;
+  if (amount > 0 && currentGroupTotal >= max) return;
+  pendingOptions[key] = Math.max(0, current + amount);
+  if (!pendingOptions[key]) delete pendingOptions[key];
+  const counter = [...document.querySelectorAll("[data-option-count]")].find(item => item.dataset.optionCount === key);
+  if (counter) counter.textContent = pendingOptions[key] || 0;
+  const heading = [...document.querySelectorAll("[data-group-id]")].find(item => String(item.dataset.groupId) === String(groupId))?.querySelector("h3 span");
+  if (heading && group) heading.textContent = `${group.minQty ? "obrigatório" : "opcional"} ${selectedGroupTotal(groupId)}/${group.maxQty || 100}`;
+}
+
+function confirmComplements() {
+  if (!pendingProduct) return;
+  const groups = productComplements(pendingProduct.id);
+  const invalid = groups.find(group => selectedGroupTotal(group.id) < Number(group.minQty || 0));
+  if (invalid) {
+    alert(`Escolha pelo menos ${invalid.minQty} item(ns) em ${cleanText(invalid.name)}.`);
+    return;
+  }
+  const options = Object.entries(pendingOptions).flatMap(([key, qty]) => {
+    const [groupId, itemId] = key.split(":");
+    const group = complementGroups.find(item => String(item.id) === String(groupId));
+    const option = group?.items?.find(item => String(item.id) === String(itemId));
+    return option && qty > 0 ? [{
+      groupId: Number(groupId),
+      groupName: group.name,
+      itemId: Number(itemId),
+      name: option.name,
+      price: Number(option.price || 0),
+      qty
+    }] : [];
+  });
+  addItem(pendingProduct.id, 1, options);
+  closeComplementModal();
 }
 
 async function sendOrder() {
@@ -276,6 +427,7 @@ async function init() {
   byId("mapsTop").href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(STORE.address + " Tokyo Sushi Tuntum")}`;
 
   await loadMenuFromDb();
+  await loadComplementsFromDb();
   renderMenu();
   renderCart();
 
@@ -298,12 +450,21 @@ async function init() {
 
   document.body.addEventListener("click", event => {
     if (event.target.dataset.id) {
-      addItem(event.target.dataset.id, 1);
-      event.target.textContent = "Adicionado";
-      setTimeout(() => { event.target.textContent = "Adicionar"; }, 750);
+      const id = event.target.dataset.id;
+      const hasComplements = productComplements(id).length > 0;
+      openComplementModal(id);
+      if (!hasComplements) {
+        event.target.textContent = "Adicionado";
+        setTimeout(() => { event.target.textContent = "Adicionar"; }, 750);
+      }
     }
     if (event.target.dataset.plus) updateCartLine(Number(event.target.dataset.plus), 1);
     if (event.target.dataset.minus) updateCartLine(Number(event.target.dataset.minus), -1);
+    if (event.target.closest("[data-remove-line]")) removeCartLine(Number(event.target.closest("[data-remove-line]").dataset.removeLine));
+    if (event.target.dataset.optionPlus) updateOption(event.target.dataset.optionPlus, 1);
+    if (event.target.dataset.optionMinus) updateOption(event.target.dataset.optionMinus, -1);
+    if (event.target.id === "closeComplementModal") closeComplementModal();
+    if (event.target.id === "addWithComplements") confirmComplements();
   });
 
   byId("clearCart").addEventListener("click", () => {

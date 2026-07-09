@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin - Tokyo Sushi</title>
-  <link rel="stylesheet" href="admin.css?v=17">
+  <link rel="stylesheet" href="admin.css?v=18">
 </head>
 <body class="admin-locked">
   <section class="login-screen" id="loginScreen">
@@ -24,7 +24,7 @@
       <span>Administração</span>
     </div>
     <div class="top-actions">
-      <a href="index.html?v=17" target="_blank" rel="noopener">Abrir cardápio</a>
+      <a href="index.html?v=18" target="_blank" rel="noopener">Abrir cardápio</a>
       <button id="logoutAdmin">Sair</button>
     </div>
   </header>
@@ -35,6 +35,7 @@
     <nav class="tabs" aria-label="Módulos">
       <button class="active" data-tab="orders">Pedidos</button>
       <button data-tab="menu">Cardápio</button>
+      <button data-tab="complements">Complementos</button>
       <button data-tab="reports">Relatórios</button>
       <button data-tab="marketing">Marketing</button>
       <button data-tab="settings">Configurações</button>
@@ -49,6 +50,20 @@
         <button class="ghost" id="clearDone">Limpar finalizados</button>
       </div>
       <div class="orders-list" id="ordersList"></div>
+    </section>
+
+    <section class="panel" id="complementsPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Complementos</h1>
+          <p>Crie listas opcionais ou obrigatórias e vincule aos itens do cardápio.</p>
+        </div>
+        <div class="actions">
+          <input id="complementSearch" placeholder="Buscar complemento">
+          <button class="primary" id="addComplementGroup">Nova lista</button>
+        </div>
+      </div>
+      <div class="complement-editor" id="complementEditor"></div>
     </section>
 
     <section class="panel" id="menuPanel">
@@ -106,9 +121,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=17"></script>
-  <script src="db.js?v=17"></script>
-  <script src="menu-data.js?v=17"></script>
-  <script src="admin.js?v=17"></script>
+  <script src="config.js?v=18"></script>
+  <script src="db.js?v=18"></script>
+  <script src="menu-data.js?v=18"></script>
+  <script src="admin.js?v=18"></script>
 </body>
 </html>
