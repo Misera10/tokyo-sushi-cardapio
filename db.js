@@ -5,6 +5,7 @@
     orders: "tokyo_orders",
     promos: "tokyo_promos",
     complements: "tokyo_complements",
+    settings: "tokyo_settings",
     ...(cfg.tables || {})
   };
   const enabled = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey);
@@ -167,9 +168,13 @@
       if (!enabled) return;
       await request(`${tables.promos}?id=eq.${id}`, { method: "DELETE", prefer: "return=minimal" });
     },
-    async loadComplements() {
+    async loadComplements(defaultComplements = []) {
       if (!enabled) return [];
       const rows = await request(`${tables.complements}?select=*&order=id.asc`);
+      if (!rows.length && defaultComplements.length) {
+        await Promise.all(defaultComplements.map(group => this.saveComplement(group)));
+        return defaultComplements;
+      }
       return rows.map(complementFromDb);
     },
     async saveComplement(group) {
@@ -183,6 +188,19 @@
     async deleteComplement(id) {
       if (!enabled) return;
       await request(`${tables.complements}?id=eq.${id}`, { method: "DELETE", prefer: "return=minimal" });
+    },
+    async loadSetting(key, fallback = null) {
+      if (!enabled) return fallback;
+      const rows = await request(`${tables.settings}?key=eq.${encodeURIComponent(key)}&select=value&limit=1`);
+      return rows[0]?.value ?? fallback;
+    },
+    async saveSetting(key, value) {
+      if (!enabled) return;
+      await request(tables.settings, {
+        method: "POST",
+        body: { key, value },
+        prefer: "resolution=merge-duplicates,return=minimal"
+      });
     }
   };
 })();

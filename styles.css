@@ -445,6 +445,11 @@ textarea { resize: vertical; }
   opacity: .45;
   cursor: not-allowed;
 }
+.add:disabled {
+  color: #8a7d73;
+  background: #e6d8c8;
+  cursor: not-allowed;
+}
 .hint {
   margin-bottom: 0;
   color: var(--muted);

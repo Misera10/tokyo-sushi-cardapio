@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin - Tokyo Sushi</title>
-  <link rel="stylesheet" href="admin.css?v=18">
+  <link rel="stylesheet" href="admin.css?v=21">
 </head>
 <body class="admin-locked">
   <section class="login-screen" id="loginScreen">
@@ -24,7 +24,7 @@
       <span>Administração</span>
     </div>
     <div class="top-actions">
-      <a href="index.html?v=18" target="_blank" rel="noopener">Abrir cardápio</a>
+      <a href="index.html?v=21" target="_blank" rel="noopener">Abrir cardápio</a>
       <button id="logoutAdmin">Sair</button>
     </div>
   </header>
@@ -47,7 +47,20 @@
           <h1>Pedidos</h1>
           <p>Controle operacional dos pedidos recebidos pelo cardápio.</p>
         </div>
-        <button class="ghost" id="clearDone">Limpar finalizados</button>
+        <div class="actions">
+          <button class="ghost" id="clearDone">Limpar finalizados</button>
+        </div>
+      </div>
+      <div class="pdv-bar">
+        <div>
+          <span>Status do cardápio</span>
+          <strong id="storeStatusAdmin">Carregando...</strong>
+        </div>
+        <div class="pdv-actions" role="group" aria-label="Status do cardápio">
+          <button class="success" data-store-mode="open">Abrir</button>
+          <button class="warning" data-store-mode="paused">Pausar</button>
+          <button class="danger" data-store-mode="closed">Fechar</button>
+        </div>
       </div>
       <div class="orders-list" id="ordersList"></div>
     </section>
@@ -121,9 +134,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=18"></script>
-  <script src="db.js?v=18"></script>
-  <script src="menu-data.js?v=18"></script>
-  <script src="admin.js?v=18"></script>
+  <script src="config.js?v=21"></script>
+  <script src="db.js?v=21"></script>
+  <script src="menu-data.js?v=21"></script>
+  <script src="admin.js?v=21"></script>
 </body>
 </html>

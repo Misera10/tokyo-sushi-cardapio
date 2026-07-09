@@ -1,15 +1,23 @@
 const DEFAULT_MENU = window.TOKYO_DATA.menu;
+const DEFAULT_COMPLEMENTS = window.TOKYO_DATA.complements || [];
 const STORE = window.TOKYO_DATA.store;
 
 const money = value => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const byId = id => document.getElementById(id);
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const ADMIN_SESSION_KEY = "tokyoAdminUnlocked";
+const STORE_STATUS_KEY = "tokyoStoreStatus";
+const STORE_STATUS = {
+  open: { mode: "open", label: "Aberto para retirada" },
+  paused: { mode: "paused", label: "Pausado temporariamente" },
+  closed: { mode: "closed", label: "Cardápio fechado" }
+};
 
 let menu = JSON.parse(localStorage.getItem("tokyoMenu") || "null") || DEFAULT_MENU.map(item => ({ ...item, active: item.active !== false }));
 let orders = JSON.parse(localStorage.getItem("tokyoOrders") || "[]");
 let promos = JSON.parse(localStorage.getItem("tokyoPromos") || "[]");
-let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "[]");
+let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "null") || DEFAULT_COMPLEMENTS;
+let storeStatus = JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") || STORE_STATUS.open;
 const productTimers = {};
 const complementTimers = {};
 
@@ -19,11 +27,13 @@ async function loadOnlineData() {
     menu = await window.TokyoDb.loadMenu(DEFAULT_MENU);
     orders = await window.TokyoDb.loadOrders();
     promos = await window.TokyoDb.loadPromos();
-    complementGroups = await window.TokyoDb.loadComplements().catch(() => complementGroups);
+    complementGroups = await window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS).catch(() => complementGroups);
+    storeStatus = await window.TokyoDb.loadSetting("store_status", STORE_STATUS.open).catch(() => storeStatus);
     localStorage.setItem("tokyoMenu", JSON.stringify(menu));
     localStorage.setItem("tokyoOrders", JSON.stringify(orders));
     localStorage.setItem("tokyoPromos", JSON.stringify(promos));
     localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
+    localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
   } catch (error) {
     console.warn("Falha ao carregar dados online. Usando cache local.", error);
   }
@@ -43,6 +53,11 @@ function savePromos() {
 
 function saveComplements() {
   localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
+}
+
+function saveStoreStatus() {
+  localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
+  runOnline(() => window.TokyoDb.saveSetting("store_status", storeStatus), "Falha ao salvar status do cardápio online.");
 }
 
 function scheduleProductSave(index) {
@@ -75,6 +90,7 @@ function orderSummary(order) {
   return [
     `Pedido #${order.id}`,
     `Cliente: ${order.customerName}`,
+    `Pagamento: ${order.payment || "-"}`,
     `Total: ${money(order.total)}`,
     "",
     ...order.items.flatMap(item => [
@@ -82,6 +98,17 @@ function orderSummary(order) {
       ...(item.options || []).map(option => `  + ${option.qty}x ${option.name}`)
     ])
   ].join("\n");
+}
+
+function orderWhatsappMessage(order) {
+  return encodeURIComponent([
+    `Olá, ${order.customerName || "cliente"}! Aqui é do ${STORE.name}.`,
+    "",
+    "Resumo do seu pedido:",
+    orderSummary(order),
+    "",
+    "Se precisar ajustar alguma coisa, pode responder por aqui."
+  ].join("\n"));
 }
 
 function readyMessage(order) {
@@ -109,25 +136,34 @@ function renderMetrics() {
   ].map(([label, value]) => `<article class="metric"><span>${label}</span><strong>${value}</strong></article>`).join("");
 }
 
-function renderOrders() {
-  if (!orders.length) {
-    byId("ordersList").innerHTML = `<div class="order-card"><p>Nenhum pedido salvo ainda.</p></div>`;
-    return;
-  }
+function renderStoreControls() {
+  byId("storeStatusAdmin").textContent = storeStatus.label || STORE_STATUS.open.label;
+  document.querySelectorAll("[data-store-mode]").forEach(button => {
+    button.classList.toggle("active-mode", button.dataset.storeMode === storeStatus.mode);
+  });
+}
 
-  byId("ordersList").innerHTML = orders.map(order => `
-    <article class="order-card">
+function nextStatuses(status) {
+  if (status === "Recebido") return ["Preparando", "Cancelado"];
+  if (status === "Preparando") return ["Pronto", "Cancelado"];
+  if (status === "Pronto") return ["Finalizado"];
+  return [];
+}
+
+function orderCard(order) {
+  const actions = nextStatuses(order.status);
+  return `
+    <article class="order-card compact">
       <div>
         <div class="order-title">
           <strong>#${order.id} - ${order.customerName || "Cliente"}</strong>
-          <span class="pill">${order.status}</span>
           <span>${formatDate(order.createdAt)}</span>
         </div>
-        <p>WhatsApp: ${order.customerPhone || "-"} | Pagamento: ${order.payment || "-"} | Total: <strong>${money(order.total)}</strong></p>
+        <p>WhatsApp: ${order.customerPhone || "-"} | ${order.payment || "-"} | <strong>${money(order.total)}</strong></p>
         <ul class="order-items">
           ${order.items.map(item => `
             <li>
-              ${item.qty}x ${item.name} - ${money(item.price * item.qty)}
+              ${item.qty}x ${item.name}
               ${(item.options || []).length ? `<small>${item.options.map(option => `+ ${option.qty}x ${option.name}`).join("<br>")}</small>` : ""}
             </li>
           `).join("")}
@@ -135,16 +171,41 @@ function renderOrders() {
         ${order.notes ? `<p><strong>Obs.:</strong> ${order.notes}</p>` : ""}
       </div>
       <div class="order-actions">
-        <select data-order-status="${order.id}">
-          ${["Recebido", "Preparando", "Pronto", "Finalizado", "Cancelado"].map(status => (
-            `<option ${status === order.status ? "selected" : ""}>${status}</option>`
-          )).join("")}
-        </select>
-        <button class="ghost" data-copy-order="${order.id}">Copiar resumo</button>
-        <a class="primary" href="https://wa.me/${whatsappNumber(order.customerPhone)}?text=${readyMessage(order)}" target="_blank" rel="noopener">Avisar pronto</a>
+        ${actions.map(status => `<button class="${status === "Cancelado" ? "danger" : "primary"}" data-quick-status="${order.id}:${status}">${status}</button>`).join("")}
+        <a class="whatsapp-action" href="https://wa.me/${whatsappNumber(order.customerPhone)}?text=${orderWhatsappMessage(order)}" target="_blank" rel="noopener" title="Abrir WhatsApp do cliente">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.9 9.9 0 0 0-8.45 15.09L2.4 21.6l4.62-1.16A9.95 9.95 0 1 0 12.04 2Zm0 2a7.95 7.95 0 0 1 6.72 12.2 7.93 7.93 0 0 1-10.93 2.32l-.38-.23-2.24.56.58-2.17-.25-.4A7.95 7.95 0 0 1 12.04 4Zm-3.05 3.7c-.18 0-.46.06-.7.33-.24.26-.92.9-.92 2.2s.94 2.55 1.07 2.73c.13.18 1.82 2.91 4.51 3.96 2.23.88 2.68.7 3.16.66.49-.05 1.57-.64 1.8-1.26.22-.62.22-1.15.15-1.26-.06-.11-.24-.18-.51-.31-.27-.13-1.57-.78-1.82-.87-.24-.09-.42-.13-.6.13-.18.27-.69.87-.85 1.04-.16.18-.31.2-.58.07-.27-.13-1.13-.42-2.15-1.33-.8-.71-1.34-1.59-1.49-1.86-.16-.27-.02-.42.12-.55.12-.12.27-.31.4-.47.13-.16.18-.27.27-.44.09-.18.05-.33-.02-.47-.07-.13-.6-1.45-.82-1.99-.22-.52-.44-.45-.6-.46h-.44Z"/></svg>
+          WhatsApp
+        </a>
+        <button class="ghost" data-copy-order="${order.id}">Copiar</button>
+        <a class="ghost" href="https://wa.me/${whatsappNumber(order.customerPhone)}?text=${readyMessage(order)}" target="_blank" rel="noopener">Pronto</a>
       </div>
     </article>
-  `).join("");
+  `;
+}
+
+function renderOrders() {
+  if (!orders.length) {
+    byId("ordersList").innerHTML = `<div class="order-card"><p>Nenhum pedido salvo ainda.</p></div>`;
+    return;
+  }
+
+  const columns = [
+    ["Recebidos", orders.filter(order => order.status === "Recebido")],
+    ["Preparando", orders.filter(order => order.status === "Preparando")],
+    ["Prontos", orders.filter(order => order.status === "Pronto")],
+    ["Fechados", orders.filter(order => ["Finalizado", "Cancelado"].includes(order.status)).slice(0, 12)]
+  ];
+
+  byId("ordersList").innerHTML = `
+    <div class="kanban">
+      ${columns.map(([title, items]) => `
+        <section class="order-column">
+          <h2>${title} <span>${items.length}</span></h2>
+          ${items.map(orderCard).join("") || `<p class="empty-column">Nenhum pedido.</p>`}
+        </section>
+      `).join("")}
+    </div>
+  `;
 }
 
 function renderComplements() {
@@ -253,6 +314,7 @@ function renderPromos() {
 }
 
 function renderAll() {
+  renderStoreControls();
   renderMetrics();
   renderOrders();
   renderMenuEditor();
@@ -329,6 +391,16 @@ document.body.addEventListener("change", event => {
 });
 
 document.body.addEventListener("click", async event => {
+  if (event.target.dataset.quickStatus) {
+    const [id, status] = event.target.dataset.quickStatus.split(":");
+    const order = orders.find(item => String(item.id) === String(id));
+    if (order) {
+      order.status = status;
+      saveOrders();
+      runOnline(() => window.TokyoDb.updateOrderStatus(order.id, order.status), "Falha ao atualizar pedido online.");
+      renderAll();
+    }
+  }
   if (event.target.dataset.copyOrder) {
     const order = orders.find(item => String(item.id) === String(event.target.dataset.copyOrder));
     if (order) await navigator.clipboard.writeText(orderSummary(order));
@@ -378,6 +450,11 @@ document.body.addEventListener("click", async event => {
     saveComplements();
     if (group?.id) runOnline(() => window.TokyoDb.deleteComplement(group.id), "Falha ao excluir complemento online.");
     renderComplements();
+  }
+  if (event.target.dataset.storeMode) {
+    storeStatus = STORE_STATUS[event.target.dataset.storeMode] || STORE_STATUS.open;
+    saveStoreStatus();
+    renderStoreControls();
   }
 });
 

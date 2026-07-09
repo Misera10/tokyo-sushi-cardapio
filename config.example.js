@@ -6,6 +6,7 @@ window.TOKYO_CONFIG = {
     products: "tokyo_products",
     orders: "tokyo_orders",
     promos: "tokyo_promos",
-    complements: "tokyo_complements"
+    complements: "tokyo_complements",
+    settings: "tokyo_settings"
   }
 };

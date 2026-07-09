@@ -288,5 +288,39 @@ window.TOKYO_DATA = {
       "price": 6.0,
       "image": "https://instadelivery-public.nyc3.cdn.digitaloceanspaces.com/itens/1769723949697bd82de2f9c.jpeg"
     }
+  ],
+  "complements": [
+    {
+      "id": 9001,
+      "name": "Cream Cheese no Hot",
+      "minQty": 0,
+      "maxQty": 100,
+      "active": true,
+      "linkedProductIds": [5141360, 5141386],
+      "items": [
+        {
+          "id": 9101,
+          "name": "Cream Cheese",
+          "price": 4,
+          "active": true
+        }
+      ]
+    },
+    {
+      "id": 9002,
+      "name": "Flambado",
+      "minQty": 0,
+      "maxQty": 100,
+      "active": true,
+      "linkedProductIds": [5160817],
+      "items": [
+        {
+          "id": 9102,
+          "name": "Flambado",
+          "price": 2,
+          "active": true
+        }
+      ]
+    }
   ]
 };

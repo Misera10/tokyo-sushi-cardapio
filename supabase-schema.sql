@@ -40,10 +40,17 @@ create table if not exists tokyo_complements (
   created_at timestamptz not null default now()
 );
 
+create table if not exists tokyo_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 alter table tokyo_products enable row level security;
 alter table tokyo_orders enable row level security;
 alter table tokyo_promos enable row level security;
 alter table tokyo_complements enable row level security;
+alter table tokyo_settings enable row level security;
 
 drop policy if exists "public tokyo products read" on tokyo_products;
 drop policy if exists "public tokyo products write" on tokyo_products;
@@ -53,6 +60,8 @@ drop policy if exists "public tokyo promos read" on tokyo_promos;
 drop policy if exists "public tokyo promos write" on tokyo_promos;
 drop policy if exists "public tokyo complements read" on tokyo_complements;
 drop policy if exists "public tokyo complements write" on tokyo_complements;
+drop policy if exists "public tokyo settings read" on tokyo_settings;
+drop policy if exists "public tokyo settings write" on tokyo_settings;
 
 -- Politicas abertas para TESTE do MVP.
 -- Antes de uso oficial, troque por login/admin protegido.
@@ -67,3 +76,38 @@ create policy "public tokyo promos write" on tokyo_promos for all using (true) w
 
 create policy "public tokyo complements read" on tokyo_complements for select using (true);
 create policy "public tokyo complements write" on tokyo_complements for all using (true) with check (true);
+
+create policy "public tokyo settings read" on tokyo_settings for select using (true);
+create policy "public tokyo settings write" on tokyo_settings for all using (true) with check (true);
+
+insert into tokyo_complements (id, name, min_qty, max_qty, active, linked_product_ids, items)
+values
+  (
+    9001,
+    'Cream Cheese no Hot',
+    0,
+    100,
+    true,
+    '[5141360, 5141386]'::jsonb,
+    '[{"id":9101,"name":"Cream Cheese","price":4,"active":true}]'::jsonb
+  ),
+  (
+    9002,
+    'Flambado',
+    0,
+    100,
+    true,
+    '[5160817]'::jsonb,
+    '[{"id":9102,"name":"Flambado","price":2,"active":true}]'::jsonb
+  )
+on conflict (id) do update set
+  name = excluded.name,
+  min_qty = excluded.min_qty,
+  max_qty = excluded.max_qty,
+  active = excluded.active,
+  linked_product_ids = excluded.linked_product_ids,
+  items = excluded.items;
+
+insert into tokyo_settings (key, value)
+values ('store_status', '{"mode":"open","label":"Aberto para retirada"}'::jsonb)
+on conflict (key) do nothing;

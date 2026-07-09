@@ -1,7 +1,11 @@
 const STORE = window.TOKYO_DATA.store;
 const DEFAULT_MENU = window.TOKYO_DATA.menu;
+const DEFAULT_COMPLEMENTS = window.TOKYO_DATA.complements || [];
+const STORE_STATUS_KEY = "tokyoStoreStatus";
+const DEFAULT_STORE_STATUS = { mode: "open", label: "Aberto para retirada" };
 let MENU = JSON.parse(localStorage.getItem("tokyoMenu") || "null") || DEFAULT_MENU;
-let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "[]");
+let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "null") || DEFAULT_COMPLEMENTS;
+let storeStatus = JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") || DEFAULT_STORE_STATUS;
 
 let searchTerm = "";
 let cart = JSON.parse(localStorage.getItem("sushiCart") || "{}");
@@ -69,11 +73,25 @@ async function loadMenuFromDb() {
 async function loadComplementsFromDb() {
   if (!window.TokyoDb?.enabled) return;
   try {
-    complementGroups = await window.TokyoDb.loadComplements();
+    complementGroups = await window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS);
     localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
   } catch (error) {
     console.warn("Falha ao carregar complementos online. Usando cache local.", error);
   }
+}
+
+async function loadStoreStatusFromDb() {
+  if (!window.TokyoDb?.enabled) return;
+  try {
+    storeStatus = await window.TokyoDb.loadSetting("store_status", DEFAULT_STORE_STATUS);
+    localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
+  } catch (error) {
+    console.warn("Falha ao carregar status do cardapio. Usando cache local.", error);
+  }
+}
+
+function isStoreOpen() {
+  return (storeStatus?.mode || "open") === "open";
 }
 
 async function saveOrder() {
@@ -188,7 +206,10 @@ function renderProducts() {
       node.querySelector("h3").textContent = cleanText(item.name);
       node.querySelector(".desc").textContent = cleanText(item.desc);
       node.querySelector(".price").textContent = money(item.price);
-      node.querySelector(".add").dataset.id = item.id;
+      const addButton = node.querySelector(".add");
+      addButton.dataset.id = item.id;
+      addButton.disabled = !isStoreOpen();
+      addButton.textContent = isStoreOpen() ? "Adicionar" : "Indisponível";
       section.appendChild(node);
     });
 
@@ -210,7 +231,7 @@ function renderCart() {
   }, 0);
 
   byId("totalValue").textContent = money(total);
-  byId("sendOrder").disabled = total <= 0;
+  byId("sendOrder").disabled = total <= 0 || !isStoreOpen();
   byId("mobileCartBar").hidden = total <= 0;
   byId("mobileCartCount").textContent = `Ver pedido • ${count} ${count === 1 ? "item" : "itens"}`;
   byId("mobileCartTotal").textContent = money(total);
@@ -402,6 +423,10 @@ function confirmComplements() {
 
 async function sendOrder() {
   if (!cartLines().length) return;
+  if (!isStoreOpen()) {
+    alert("O cardápio está pausado ou fechado no momento.");
+    return;
+  }
   if (!byId("customerName").value.trim()) {
     document.querySelector(".cart").scrollIntoView({ behavior: "smooth", block: "start" });
     byId("customerName").focus();
@@ -419,7 +444,8 @@ async function sendOrder() {
 }
 
 async function init() {
-  byId("storeStatus").textContent = "Retirada no balcão";
+  await loadStoreStatusFromDb();
+  byId("storeStatus").textContent = storeStatus.label || "Retirada no balcão";
   byId("storeHours").textContent = STORE.hours;
   byId("storeAddress").textContent = cleanText(STORE.address);
   byId("instagramTop").href = STORE.instagram;
@@ -428,6 +454,7 @@ async function init() {
 
   await loadMenuFromDb();
   await loadComplementsFromDb();
+  byId("storeStatus").textContent = storeStatus.label || "Retirada no balcão";
   renderMenu();
   renderCart();
 
@@ -450,6 +477,10 @@ async function init() {
 
   document.body.addEventListener("click", event => {
     if (event.target.dataset.id) {
+      if (!isStoreOpen()) {
+        alert("O cardápio está pausado ou fechado no momento.");
+        return;
+      }
       const id = event.target.dataset.id;
       const hasComplements = productComplements(id).length > 0;
       openComplementModal(id);
