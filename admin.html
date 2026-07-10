@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin - Tokyo Sushi</title>
-  <link rel="stylesheet" href="admin.css?v=23">
+  <link rel="stylesheet" href="admin.css?v=26">
 </head>
 <body class="admin-locked">
   <section class="login-screen" id="loginScreen">
@@ -24,7 +24,7 @@
       <span>Administração</span>
     </div>
     <div class="top-actions">
-      <a href="index.html?v=23" target="_blank" rel="noopener">Abrir cardápio</a>
+      <a href="index.html?v=26" target="_blank" rel="noopener">Abrir cardápio</a>
       <button id="logoutAdmin">Sair</button>
     </div>
   </header>
@@ -34,6 +34,8 @@
 
     <nav class="tabs" aria-label="Módulos">
       <button class="active" data-tab="orders">Pedidos</button>
+      <button data-tab="pdv">PDV</button>
+      <button data-tab="kds">Cozinha</button>
       <button data-tab="cash">Caixa</button>
       <button data-tab="menu">Cardápio</button>
       <button data-tab="complements">Complementos</button>
@@ -76,6 +78,42 @@
       <div class="orders-list" id="ordersList"></div>
     </section>
 
+    <section class="panel" id="pdvPanel">
+      <div class="panel-head">
+        <div>
+          <h1>PDV</h1>
+          <p>Registre rapidamente pedidos recebidos no balcão ou pelo telefone.</p>
+        </div>
+      </div>
+      <div class="pdv-layout">
+        <form class="pdv-form" id="pdvForm">
+          <div class="form-grid">
+            <label>Cliente<input id="pdvCustomer" placeholder="Nome do cliente" required></label>
+            <label>Celular<input id="pdvPhone" placeholder="(99) 99999-9999"></label>
+            <label>Pagamento<select id="pdvPayment"><option>Pix</option><option>Cartão na retirada</option><option>Dinheiro</option></select></label>
+          </div>
+          <div class="pdv-add-line">
+            <select id="pdvProduct" aria-label="Produto"></select>
+            <input id="pdvQty" type="number" min="1" value="1" aria-label="Quantidade">
+            <button class="primary" id="pdvAddItem" type="button">Adicionar</button>
+          </div>
+          <label>Observações<textarea id="pdvNotes" rows="3" placeholder="Detalhes do pedido"></textarea></label>
+          <button class="primary" type="submit">Criar pedido</button>
+        </form>
+        <aside class="pdv-cart" id="pdvCart"></aside>
+      </div>
+    </section>
+
+    <section class="panel" id="kdsPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Cozinha</h1>
+          <p>Fila de produção com leitura rápida para a equipe.</p>
+        </div>
+      </div>
+      <div class="kds-grid" id="kdsGrid"></div>
+    </section>
+
     <section class="panel" id="cashPanel">
       <div class="panel-head">
         <div>
@@ -83,7 +121,21 @@
           <p>Resumo financeiro dos pedidos de hoje.</p>
         </div>
       </div>
+      <div class="cash-control" id="cashControl">
+        <form id="cashOpenForm" class="cash-form">
+          <label>Valor de abertura<input id="cashOpening" type="number" min="0" step="0.01" value="0"></label>
+          <button class="primary" type="submit">Abrir caixa</button>
+        </form>
+        <form id="cashEntryForm" class="cash-form" hidden>
+          <label>Movimento<select id="cashEntryType"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label>
+          <label>Descrição<input id="cashEntryDescription" placeholder="Ex.: compra de embalagem"></label>
+          <label>Valor<input id="cashEntryValue" type="number" min="0.01" step="0.01" required></label>
+          <button class="primary" type="submit">Registrar</button>
+          <button class="danger" id="closeCash" type="button">Fechar caixa</button>
+        </form>
+      </div>
       <div class="report-grid" id="cashSummary"></div>
+      <div class="cash-movements" id="cashMovements"></div>
     </section>
 
     <section class="panel" id="complementsPanel">
@@ -166,14 +218,21 @@
         <article><strong>WhatsApp</strong><span>Contato, resumo e aviso de pedido pronto disponíveis no pedido.</span></article>
         <article><strong>Banco de dados</strong><span id="databaseStatus">Verificando conexão...</span></article>
         <article><strong>Cardápio</strong><span id="settingsStoreStatus">Verificando status...</span></article>
-        <article><strong>Impressão de cozinha</strong><span>Preparada como próxima integração, sem afetar a operação atual.</span></article>
+        <article>
+          <strong>Impressão de cozinha</strong>
+          <span>Escolha a largura do papel usada nas comandas.</span>
+          <select id="printerWidth" aria-label="Largura da impressora">
+            <option value="80">80 mm</option>
+            <option value="58">58 mm</option>
+          </select>
+        </article>
       </div>
     </section>
   </main>
 
-  <script src="config.js?v=23"></script>
-  <script src="db.js?v=23"></script>
-  <script src="menu-data.js?v=23"></script>
-  <script src="admin.js?v=23"></script>
+  <script src="config.js?v=26"></script>
+  <script src="db.js?v=26"></script>
+  <script src="menu-data.js?v=26"></script>
+  <script src="admin.js?v=26"></script>
 </body>
 </html>

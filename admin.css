@@ -11,6 +11,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   color: var(--ink);
@@ -418,6 +419,18 @@ p {
   border: 1px solid transparent;
   font-size: 13px;
 }
+.icon-action {
+  width: 34px;
+  min-width: 34px;
+  padding: 7px;
+}
+.icon-action svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: auto;
+  fill: currentColor;
+}
 .action-btn.primary {
   background: #07825a;
 }
@@ -561,6 +574,74 @@ input, textarea, select {
   font-size: 11px;
   font-weight: 800;
 }
+.pdv-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
+  gap: 16px;
+}
+.pdv-form, .pdv-cart, .cash-control, .cash-movements {
+  border: 1px solid var(--line);
+  padding: 16px;
+  background: #fffaf3;
+}
+.pdv-form, .cash-form {
+  display: grid;
+  gap: 12px;
+}
+.pdv-form label, .cash-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 180px;
+  gap: 10px;
+}
+.pdv-add-line {
+  display: grid;
+  grid-template-columns: 1fr 90px auto;
+  gap: 8px;
+}
+.pdv-cart h2 { margin-top: 0; font-size: 18px; }
+.pdv-cart-row, .cash-movement {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+.pdv-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+  font-size: 18px;
+}
+.kds-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(240px, 1fr));
+  gap: 12px;
+}
+.kds-card {
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--gold);
+  padding: 14px;
+  background: white;
+}
+.kds-card.preparing { border-top-color: var(--green); }
+.kds-card h2 { margin: 0 0 6px; font-size: 18px; }
+.kds-card ul { margin: 14px 0; padding-left: 20px; }
+.cash-control { margin-bottom: 14px; }
+.cash-form {
+  grid-template-columns: repeat(3, minmax(140px, 1fr)) auto auto;
+  align-items: end;
+}
+.cash-movements { margin-top: 14px; }
+.cash-movement .entrada { color: var(--green); }
+.cash-movement .saida { color: var(--red); }
 .customer-list {
   overflow-x: auto;
 }
@@ -639,17 +720,38 @@ input, textarea, select {
   .kanban {
     grid-template-columns: 1fr;
   }
+  .pdv-layout, .form-grid, .kds-grid, .cash-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 520px) {
-  .metrics, .report-grid, .settings-grid {
+  .report-grid, .settings-grid {
     grid-template-columns: 1fr;
   }
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .metric { padding: 10px; }
+  .metric strong { font-size: 19px; }
   .admin-top {
     align-items: flex-start;
     flex-direction: column;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+  .top-actions {
+    width: 100%;
+  }
+  .top-actions a, .top-actions button {
+    flex: 1;
+    padding: 8px 10px;
   }
   .panel {
     padding: 12px;
+  }
+  .pdv-add-line {
+    grid-template-columns: 1fr;
   }
 }

@@ -4,6 +4,7 @@ const STORE = window.TOKYO_DATA.store;
 
 const money = value => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const byId = id => document.getElementById(id);
+const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const ADMIN_SESSION_KEY = "tokyoAdminUnlocked";
 const STORE_STATUS_KEY = "tokyoStoreStatus";
@@ -18,6 +19,8 @@ let orders = JSON.parse(localStorage.getItem("tokyoOrders") || "[]");
 let promos = JSON.parse(localStorage.getItem("tokyoPromos") || "[]");
 let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "null") || DEFAULT_COMPLEMENTS;
 let storeStatus = JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") || STORE_STATUS.open;
+let cashSession = JSON.parse(localStorage.getItem("tokyoCashSession") || "null") || { open: false, opening: 0, transactions: [] };
+let pdvCart = [];
 const productTimers = {};
 const complementTimers = {};
 
@@ -41,11 +44,13 @@ async function loadOnlineData() {
     promos = await window.TokyoDb.loadPromos();
     complementGroups = withDefaultComplements(await window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS).catch(() => complementGroups));
     storeStatus = await window.TokyoDb.loadSetting("store_status", STORE_STATUS.open).catch(() => storeStatus);
+    cashSession = await window.TokyoDb.loadSetting("cash_session", cashSession).catch(() => cashSession);
     localStorage.setItem("tokyoMenu", JSON.stringify(menu));
     localStorage.setItem("tokyoOrders", JSON.stringify(orders));
     localStorage.setItem("tokyoPromos", JSON.stringify(promos));
     localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
     localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
+    localStorage.setItem("tokyoCashSession", JSON.stringify(cashSession));
   } catch (error) {
     console.warn("Falha ao carregar dados online. Usando cache local.", error);
   }
@@ -70,6 +75,11 @@ function saveComplements() {
 function saveStoreStatus() {
   localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
   runOnline(() => window.TokyoDb.saveSetting("store_status", storeStatus), "Falha ao salvar status do cardápio online.");
+}
+
+function saveCashSession() {
+  localStorage.setItem("tokyoCashSession", JSON.stringify(cashSession));
+  runOnline(() => window.TokyoDb.saveSetting("cash_session", cashSession), "Falha ao salvar o caixa online.");
 }
 
 function scheduleProductSave(index) {
@@ -125,6 +135,28 @@ function orderWhatsappMessage(order) {
 
 function readyMessage(order) {
   return encodeURIComponent(`Olá, ${order.customerName}! Seu pedido do ${STORE.name} está pronto para retirada.`);
+}
+
+function printOrder(order) {
+  const width = localStorage.getItem("tokyoPrinterWidth") || "80";
+  const receipt = window.open("", "_blank", "width=420,height=720");
+  if (!receipt) return alert("Permita pop-ups para imprimir a comanda.");
+  const items = order.items.map(item => `
+    <div class="item"><strong>${item.qty}x ${escapeHtml(item.name)}</strong><span>${money(Number(item.price || 0) * Number(item.qty || 0))}</span></div>
+    ${(item.options || []).map(option => `<small>+ ${option.qty}x ${escapeHtml(option.name)}</small>`).join("")}
+  `).join("");
+  receipt.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pedido ${escapeHtml(order.id)}</title><style>
+    @page{size:${width}mm auto;margin:3mm}*{box-sizing:border-box}body{width:${width - 6}mm;margin:0;color:#000;font:13px/1.35 "Courier New",monospace}h1,p{margin:0 0 6px}.center{text-align:center}.line{border-top:1px dashed #000;margin:8px 0}.item{display:flex;justify-content:space-between;gap:8px;margin:6px 0}.item strong{max-width:70%}small{display:block;margin-left:10px}.total{display:flex;justify-content:space-between;font-size:16px;font-weight:bold}.notes{border:1px solid #000;padding:6px;margin-top:8px}
+  </style></head><body>
+    <div class="center"><h1>TOKYO SUSHI</h1><strong>PEDIDO #${escapeHtml(order.id)}</strong><p>${escapeHtml(formatDate(order.createdAt))}</p></div>
+    <div class="line"></div><p><strong>Cliente:</strong> ${escapeHtml(order.customerName || "Cliente")}</p><p><strong>Celular:</strong> ${escapeHtml(order.customerPhone || "-")}</p><p><strong>Pagamento:</strong> ${escapeHtml(order.payment || "-")}</p>
+    <div class="line"></div>${items}<div class="line"></div><div class="total"><span>TOTAL</span><span>${money(order.total)}</span></div>
+    ${order.notes ? `<div class="notes"><strong>OBSERVAÇÃO</strong><br>${escapeHtml(order.notes)}</div>` : ""}
+    <div class="line"></div><p class="center">RETIRADA NO BALCÃO</p>
+  </body></html>`);
+  receipt.document.close();
+  receipt.focus();
+  setTimeout(() => receipt.print(), 250);
 }
 
 function whatsappNumber(phone) {
@@ -212,6 +244,9 @@ function orderCard(order) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.9 9.9 0 0 0-8.45 15.09L2.4 21.6l4.62-1.16A9.95 9.95 0 1 0 12.04 2Zm0 2a7.95 7.95 0 0 1 6.72 12.2 7.93 7.93 0 0 1-10.93 2.32l-.38-.23-2.24.56.58-2.17-.25-.4A7.95 7.95 0 0 1 12.04 4Zm-3.05 3.7c-.18 0-.46.06-.7.33-.24.26-.92.9-.92 2.2s.94 2.55 1.07 2.73c.13.18 1.82 2.91 4.51 3.96 2.23.88 2.68.7 3.16.66.49-.05 1.57-.64 1.8-1.26.22-.62.22-1.15.15-1.26-.06-.11-.24-.18-.51-.31-.27-.13-1.57-.78-1.82-.87-.24-.09-.42-.13-.6.13-.18.27-.69.87-.85 1.04-.16.18-.31.2-.58.07-.27-.13-1.13-.42-2.15-1.33-.8-.71-1.34-1.59-1.49-1.86-.16-.27-.02-.42.12-.55.12-.12.27-.31.4-.47.13-.16.18-.27.27-.44.09-.18.05-.33-.02-.47-.07-.13-.6-1.45-.82-1.99-.22-.52-.44-.45-.6-.46h-.44Z"/></svg>
           WhatsApp
         </a>
+        <button class="action-btn ghost icon-action" data-print-order="${order.id}" aria-label="Imprimir comanda" title="Imprimir comanda">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7h1a3 3 0 0 1 3 3v6h-4v4H6v-4H2v-6a3 3 0 0 1 3-3h1Zm2-5v5h8V4H8Zm8 12H8v4h8v-4Zm3-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>
+        </button>
         <button class="action-btn ghost" data-copy-order="${order.id}">Copiar</button>
         <a class="action-btn ghost" href="https://wa.me/${whatsappNumber(order.customerPhone)}?text=${readyMessage(order)}" target="_blank" rel="noopener">Avisar</a>
       </div>
@@ -309,6 +344,32 @@ function renderMenuEditor() {
   `).join("");
 }
 
+function pdvTotal() {
+  return pdvCart.reduce((sum, line) => sum + Number(line.price || 0) * Number(line.qty || 0), 0);
+}
+
+function renderPdv() {
+  byId("pdvProduct").innerHTML = menu.filter(item => item.active !== false).map(item => `<option value="${item.id}">${item.name} - ${money(item.price)}</option>`).join("");
+  byId("pdvCart").innerHTML = `
+    <h2>Pedido atual</h2>
+    ${pdvCart.map((line, index) => `<div class="pdv-cart-row"><span>${line.qty}x ${line.name}</span><strong>${money(line.qty * line.price)}</strong><button class="danger" data-remove-pdv="${index}" type="button">Excluir</button></div>`).join("") || `<p>Nenhum item adicionado.</p>`}
+    <div class="pdv-total"><span>Total</span><strong>${money(pdvTotal())}</strong></div>
+  `;
+}
+
+function renderKds() {
+  const active = orders.filter(order => ["Recebido", "Preparando"].includes(order.status));
+  byId("kdsGrid").innerHTML = active.map(order => `
+    <article class="kds-card ${order.status === "Preparando" ? "preparing" : ""}">
+      <h2>#${order.id} · ${order.customerName || "Cliente"}</h2>
+      <small>${formatDate(order.createdAt)} · ${order.status}</small>
+      <ul>${order.items.map(item => `<li><strong>${item.qty}x</strong> ${item.name}${(item.options || []).length ? `<small>${item.options.map(option => ` + ${option.qty}x ${option.name}`).join("<br>")}</small>` : ""}</li>`).join("")}</ul>
+      ${order.notes ? `<p><strong>Observação:</strong> ${order.notes}</p>` : ""}
+      <div class="actions"><button class="primary" data-quick-status="${order.id}:${order.status === "Recebido" ? "Preparando" : "Pronto"}">${order.status === "Recebido" ? "Iniciar preparo" : "Marcar pronto"}</button><button class="ghost" data-print-order="${order.id}">Imprimir</button></div>
+    </article>
+  `).join("") || `<p>Nenhum pedido aguardando preparo.</p>`;
+}
+
 function reportOrders() {
   const start = byId("reportStart")?.value || "";
   const end = byId("reportEnd")?.value || "";
@@ -358,13 +419,20 @@ function renderCash() {
     result[name] = (result[name] || 0) + Number(order.total || 0);
     return result;
   }, {});
-  const total = todayOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const sales = todayOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const entries = (cashSession.transactions || []).filter(item => item.type === "entrada").reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const exits = (cashSession.transactions || []).filter(item => item.type === "saida").reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const balance = Number(cashSession.opening || 0) + sales + entries - exits;
+  byId("cashOpenForm").hidden = cashSession.open;
+  byId("cashEntryForm").hidden = !cashSession.open;
   byId("cashSummary").innerHTML = `
-    <article class="report-box"><h2>Faturamento hoje</h2><strong>${money(total)}</strong></article>
+    <article class="report-box"><h2>Status</h2><strong>${cashSession.open ? "Aberto" : "Fechado"}</strong></article>
+    <article class="report-box"><h2>Faturamento hoje</h2><strong>${money(sales)}</strong></article>
     <article class="report-box"><h2>Pedidos válidos</h2><strong>${todayOrders.length}</strong></article>
     <article class="report-box"><h2>Por pagamento</h2>${Object.entries(payments).map(([name, value]) => `<p>${name}: <strong>${money(value)}</strong></p>`).join("") || "<p>Sem vendas hoje.</p>"}</article>
-    <article class="report-box"><h2>Ticket médio</h2><strong>${money(todayOrders.length ? total / todayOrders.length : 0)}</strong></article>
+    <article class="report-box"><h2>Saldo esperado</h2><strong>${money(balance)}</strong></article>
   `;
+  byId("cashMovements").innerHTML = `<strong>Entradas e saídas</strong>${(cashSession.transactions || []).map(item => `<div class="cash-movement"><span>${item.description || (item.type === "entrada" ? "Entrada" : "Saída")}</span><small>${formatDate(item.createdAt)}</small><strong class="${item.type}">${item.type === "entrada" ? "+" : "-"} ${money(item.value)}</strong></div>`).join("") || `<p>Nenhum movimento registrado.</p>`}`;
 }
 
 function renderCustomers() {
@@ -418,6 +486,8 @@ function renderAll() {
   renderStoreControls();
   renderMetrics();
   renderOrders();
+  renderPdv();
+  renderKds();
   renderMenuEditor();
   renderComplements();
   renderReports();
@@ -494,6 +564,10 @@ document.body.addEventListener("change", event => {
 });
 
 document.body.addEventListener("click", async event => {
+  if (event.target.dataset.removePdv) {
+    pdvCart.splice(Number(event.target.dataset.removePdv), 1);
+    renderPdv();
+  }
   if (event.target.dataset.quickStatus) {
     const [id, status] = event.target.dataset.quickStatus.split(":");
     const order = orders.find(item => String(item.id) === String(id));
@@ -507,6 +581,10 @@ document.body.addEventListener("click", async event => {
   if (event.target.dataset.copyOrder) {
     const order = orders.find(item => String(item.id) === String(event.target.dataset.copyOrder));
     if (order) await navigator.clipboard.writeText(orderSummary(order));
+  }
+  if (event.target.dataset.printOrder) {
+    const order = orders.find(item => String(item.id) === String(event.target.dataset.printOrder));
+    if (order) printOrder(order);
   }
   if (event.target.dataset.removeProduct) {
     const index = Number(event.target.dataset.removeProduct);
@@ -627,6 +705,63 @@ byId("customerSearch").addEventListener("input", renderCustomers);
 byId("reportStart").addEventListener("change", renderReports);
 byId("reportEnd").addEventListener("change", renderReports);
 byId("exportReport").addEventListener("click", exportReportCsv);
+byId("printerWidth").value = localStorage.getItem("tokyoPrinterWidth") || "80";
+byId("printerWidth").addEventListener("change", event => localStorage.setItem("tokyoPrinterWidth", event.target.value));
+
+byId("pdvAddItem").addEventListener("click", () => {
+  const product = menu.find(item => String(item.id) === String(byId("pdvProduct").value));
+  const qty = Math.max(1, Number(byId("pdvQty").value || 1));
+  if (!product) return;
+  const current = pdvCart.find(item => String(item.id) === String(product.id));
+  if (current) current.qty += qty;
+  else pdvCart.push({ id: product.id, name: product.name, price: Number(product.price || 0), qty, options: [] });
+  byId("pdvQty").value = 1;
+  renderPdv();
+});
+
+byId("pdvForm").addEventListener("submit", event => {
+  event.preventDefault();
+  if (!pdvCart.length) return alert("Adicione pelo menos um item ao pedido.");
+  const order = {
+    id: Date.now(), status: "Recebido",
+    customerName: byId("pdvCustomer").value.trim(),
+    customerPhone: byId("pdvPhone").value.trim(),
+    payment: byId("pdvPayment").value,
+    notes: byId("pdvNotes").value.trim(),
+    total: pdvTotal(), items: pdvCart.map(item => ({ ...item })), createdAt: new Date().toISOString()
+  };
+  orders.unshift(order);
+  saveOrders();
+  runOnline(() => window.TokyoDb.createOrder(order), "Falha ao salvar pedido do PDV online.");
+  pdvCart = [];
+  event.target.reset();
+  renderAll();
+  document.querySelector('[data-tab="orders"]').click();
+});
+
+byId("cashOpenForm").addEventListener("submit", event => {
+  event.preventDefault();
+  cashSession = { open: true, opening: Number(byId("cashOpening").value || 0), openedAt: new Date().toISOString(), transactions: [] };
+  saveCashSession();
+  renderCash();
+});
+
+byId("cashEntryForm").addEventListener("submit", event => {
+  event.preventDefault();
+  cashSession.transactions = cashSession.transactions || [];
+  cashSession.transactions.unshift({ id: Date.now(), type: byId("cashEntryType").value, description: byId("cashEntryDescription").value.trim(), value: Number(byId("cashEntryValue").value || 0), createdAt: new Date().toISOString() });
+  saveCashSession();
+  event.target.reset();
+  renderCash();
+});
+
+byId("closeCash").addEventListener("click", () => {
+  if (!confirm("Fechar o caixa atual?")) return;
+  cashSession.open = false;
+  cashSession.closedAt = new Date().toISOString();
+  saveCashSession();
+  renderCash();
+});
 
 document.body.addEventListener("input", event => {
   const field = event.target.dataset.menuField;

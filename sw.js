@@ -1,4 +1,4 @@
-const CACHE_NAME = "tokyo-sushi-v23";
+const CACHE_NAME = "tokyo-sushi-v26";
 const ASSETS = ["./", "./index.html", "./admin.html", "./styles.css", "./admin.css", "./config.js", "./db.js", "./menu-data.js", "./app.js", "./admin.js", "./manifest.webmanifest", "./assets/tokyo-logo-instagram.jpg"];
 
 self.addEventListener("install", event => {
