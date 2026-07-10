@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin - Tokyo Sushi</title>
-  <link rel="stylesheet" href="admin.css?v=26">
+  <link rel="stylesheet" href="admin.css?v=27">
 </head>
 <body class="admin-locked">
   <section class="login-screen" id="loginScreen">
@@ -24,7 +24,7 @@
       <span>Administração</span>
     </div>
     <div class="top-actions">
-      <a href="index.html?v=26" target="_blank" rel="noopener">Abrir cardápio</a>
+      <a href="index.html?v=27" target="_blank" rel="noopener">Abrir cardápio</a>
       <button id="logoutAdmin">Sair</button>
     </div>
   </header>
@@ -172,8 +172,16 @@
           <h1>Clientes</h1>
           <p>Histórico de clientes criado automaticamente pelos pedidos.</p>
         </div>
-        <div class="actions"><input id="customerSearch" placeholder="Buscar nome ou celular"></div>
+        <div class="actions"><input id="customerSearch" placeholder="Buscar nome ou celular"><button class="primary" id="addCustomer">Novo cliente</button></div>
       </div>
+      <form class="customer-form" id="customerForm" hidden>
+        <input id="customerKey" type="hidden">
+        <label>Nome<input id="customerNameEdit" required placeholder="Nome do cliente"></label>
+        <label>Celular<input id="customerPhoneEdit" placeholder="(99) 99999-9999"></label>
+        <label>Anotações<input id="customerNotesEdit" placeholder="Preferências ou observações"></label>
+        <button class="primary" type="submit">Salvar cliente</button>
+        <button class="ghost" id="cancelCustomer" type="button">Cancelar</button>
+      </form>
       <div class="customer-list" id="customerList"></div>
     </section>
 
@@ -230,9 +238,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=26"></script>
-  <script src="db.js?v=26"></script>
-  <script src="menu-data.js?v=26"></script>
-  <script src="admin.js?v=26"></script>
+  <script src="config.js?v=27"></script>
+  <script src="db.js?v=27"></script>
+  <script src="menu-data.js?v=27"></script>
+  <script src="admin.js?v=27"></script>
 </body>
 </html>

@@ -647,13 +647,45 @@ input, textarea, select {
 }
 .customer-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(130px, 1fr) 100px 130px auto;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(130px, 1fr) 100px 130px minmax(250px, auto);
   gap: 12px;
   align-items: center;
   border-bottom: 1px solid var(--line);
   padding: 12px 4px;
 }
 .customer-row small { color: var(--muted); }
+.customer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.customer-form {
+  display: grid;
+  grid-template-columns: 1fr 180px 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  padding: 14px;
+  background: #fffaf3;
+}
+.customer-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+.product-edit input:disabled, .product-edit textarea:disabled {
+  color: var(--ink);
+  background: #f6f1e9;
+  opacity: 1;
+}
+.product-edit.editing {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(215,170,72,.16);
+}
 .product-links {
   grid-column: 2 / -1;
   margin: 0;
@@ -721,6 +753,9 @@ input, textarea, select {
     grid-template-columns: 1fr;
   }
   .pdv-layout, .form-grid, .kds-grid, .cash-form {
+    grid-template-columns: 1fr;
+  }
+  .customer-form {
     grid-template-columns: 1fr;
   }
 }

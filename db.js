@@ -164,6 +164,10 @@
       if (!enabled) return;
       await request(tables.promos, { method: "POST", body: promo, prefer: "return=minimal" });
     },
+    async updatePromo(id, promo) {
+      if (!enabled) return;
+      await request(`${tables.promos}?id=eq.${id}`, { method: "PATCH", body: promo, prefer: "return=minimal" });
+    },
     async deletePromo(id) {
       if (!enabled) return;
       await request(`${tables.promos}?id=eq.${id}`, { method: "DELETE", prefer: "return=minimal" });

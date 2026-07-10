@@ -20,7 +20,10 @@ let promos = JSON.parse(localStorage.getItem("tokyoPromos") || "[]");
 let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "null") || DEFAULT_COMPLEMENTS;
 let storeStatus = JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") || STORE_STATUS.open;
 let cashSession = JSON.parse(localStorage.getItem("tokyoCashSession") || "null") || { open: false, opening: 0, transactions: [] };
+let customerProfiles = JSON.parse(localStorage.getItem("tokyoCustomerProfiles") || "{}");
+let hiddenCustomerKeys = JSON.parse(localStorage.getItem("tokyoHiddenCustomers") || "[]");
 let pdvCart = [];
+let editingProductId = null;
 const productTimers = {};
 const complementTimers = {};
 
@@ -45,12 +48,16 @@ async function loadOnlineData() {
     complementGroups = withDefaultComplements(await window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS).catch(() => complementGroups));
     storeStatus = await window.TokyoDb.loadSetting("store_status", STORE_STATUS.open).catch(() => storeStatus);
     cashSession = await window.TokyoDb.loadSetting("cash_session", cashSession).catch(() => cashSession);
+    customerProfiles = await window.TokyoDb.loadSetting("customer_profiles", customerProfiles).catch(() => customerProfiles);
+    hiddenCustomerKeys = await window.TokyoDb.loadSetting("hidden_customers", hiddenCustomerKeys).catch(() => hiddenCustomerKeys);
     localStorage.setItem("tokyoMenu", JSON.stringify(menu));
     localStorage.setItem("tokyoOrders", JSON.stringify(orders));
     localStorage.setItem("tokyoPromos", JSON.stringify(promos));
     localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
     localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
     localStorage.setItem("tokyoCashSession", JSON.stringify(cashSession));
+    localStorage.setItem("tokyoCustomerProfiles", JSON.stringify(customerProfiles));
+    localStorage.setItem("tokyoHiddenCustomers", JSON.stringify(hiddenCustomerKeys));
   } catch (error) {
     console.warn("Falha ao carregar dados online. Usando cache local.", error);
   }
@@ -80,6 +87,17 @@ function saveStoreStatus() {
 function saveCashSession() {
   localStorage.setItem("tokyoCashSession", JSON.stringify(cashSession));
   runOnline(() => window.TokyoDb.saveSetting("cash_session", cashSession), "Falha ao salvar o caixa online.");
+}
+
+function saveCustomerData() {
+  localStorage.setItem("tokyoCustomerProfiles", JSON.stringify(customerProfiles));
+  localStorage.setItem("tokyoHiddenCustomers", JSON.stringify(hiddenCustomerKeys));
+  runOnline(() => window.TokyoDb.saveSetting("customer_profiles", customerProfiles), "Falha ao salvar clientes online.");
+  runOnline(() => window.TokyoDb.saveSetting("hidden_customers", hiddenCustomerKeys), "Falha ao salvar clientes removidos online.");
+}
+
+function customerKey(name, phone) {
+  return String(phone || "").replace(/\D/g, "") || String(name || "").trim().toLowerCase() || `cliente-${Date.now()}`;
 }
 
 function scheduleProductSave(index) {
@@ -284,7 +302,10 @@ function renderComplements() {
   const term = (byId("complementSearch")?.value || "").toLowerCase().trim();
   const groups = complementGroups
     .map((group, index) => ({ group, index }))
-    .filter(({ group }) => !term || `${group.name} ${(group.items || []).map(item => item.name).join(" ")}`.toLowerCase().includes(term));
+    .filter(({ group }) => {
+      const linkedNames = menu.filter(product => (group.linkedProductIds || []).map(String).includes(String(product.id))).map(product => product.name).join(" ");
+      return !term || `${group.name} ${(group.items || []).map(item => item.name).join(" ")} ${linkedNames}`.toLowerCase().includes(term);
+    });
 
   byId("complementEditor").innerHTML = groups.map(({ group, index }) => `
     <article class="complement-card">
@@ -293,7 +314,7 @@ function renderComplements() {
         <label>Mínimo<input type="number" min="0" data-complement-field="minQty" data-cindex="${index}" value="${group.minQty || 0}"></label>
         <label>Máximo<input type="number" min="1" data-complement-field="maxQty" data-cindex="${index}" value="${group.maxQty || 100}"></label>
         <label class="check-line"><input type="checkbox" data-complement-field="active" data-cindex="${index}" ${group.active !== false ? "checked" : ""}> Ativo</label>
-        <button class="danger" data-remove-complement="${index}">Excluir lista</button>
+        <div class="row-actions"><button class="ghost" data-duplicate-complement="${index}">Duplicar</button><button class="danger" data-remove-complement="${index}">Excluir</button></div>
       </div>
 
       <details open>
@@ -327,21 +348,26 @@ function renderComplements() {
 }
 
 function renderMenuEditor() {
-  byId("menuEditor").innerHTML = menu.map((item, index) => `
-    <article class="product-edit">
+  byId("menuEditor").innerHTML = menu.map((item, index) => {
+    const editing = String(editingProductId) === String(item.id);
+    return `
+    <article class="product-edit ${editing ? "editing" : ""}">
       <img src="${item.image || ""}" alt="">
-      <label>Nome<input data-menu-field="name" data-index="${index}" value="${item.name || ""}"></label>
-      <label>Categoria<input data-menu-field="cat" data-index="${index}" value="${item.cat || ""}"></label>
-      <label>Preço<input data-menu-field="price" data-index="${index}" type="number" step="0.01" value="${item.price || 0}"></label>
-      <label>Descrição<textarea data-menu-field="desc" data-index="${index}">${item.desc || ""}</textarea></label>
-      <label>Imagem<input data-menu-field="image" data-index="${index}" value="${item.image || ""}"></label>
+      <label>Nome<input data-menu-field="name" data-index="${index}" value="${item.name || ""}" ${editing ? "" : "disabled"}></label>
+      <label>Categoria<input data-menu-field="cat" data-index="${index}" value="${item.cat || ""}" ${editing ? "" : "disabled"}></label>
+      <label>Preço<input data-menu-field="price" data-index="${index}" type="number" step="0.01" value="${item.price || 0}" ${editing ? "" : "disabled"}></label>
+      <label>Descrição<textarea data-menu-field="desc" data-index="${index}" ${editing ? "" : "disabled"}>${item.desc || ""}</textarea></label>
+      <label>Imagem<input data-menu-field="image" data-index="${index}" value="${item.image || ""}" ${editing ? "" : "disabled"}></label>
       <div class="checks"><input data-menu-field="active" data-index="${index}" type="checkbox" ${item.active !== false ? "checked" : ""}> Ativo</div>
       <div class="row-actions">
+        <button class="ghost" data-edit-product="${index}">${editing ? "Salvar" : "Editar"}</button>
+        <button class="ghost" data-duplicate-product="${index}">Duplicar</button>
+        <button class="ghost" data-product-complements="${index}">Complementos</button>
         <button class="danger" data-remove-product="${index}">Excluir</button>
       </div>
       <p class="product-links">Complementos: ${complementGroups.filter(group => (group.linkedProductIds || []).map(String).includes(String(item.id))).map(group => group.name).join(", ") || "nenhum vinculado"}</p>
     </article>
-  `).join("");
+  `}).join("");
 }
 
 function pdvTotal() {
@@ -435,26 +461,56 @@ function renderCash() {
   byId("cashMovements").innerHTML = `<strong>Entradas e saídas</strong>${(cashSession.transactions || []).map(item => `<div class="cash-movement"><span>${item.description || (item.type === "entrada" ? "Entrada" : "Saída")}</span><small>${formatDate(item.createdAt)}</small><strong class="${item.type}">${item.type === "entrada" ? "+" : "-"} ${money(item.value)}</strong></div>`).join("") || `<p>Nenhum movimento registrado.</p>`}`;
 }
 
+function customerRecord(key) {
+  const profile = customerProfiles?.[key];
+  if (profile) return { key, ...profile };
+  const order = orders.find(item => customerKey(item.customerName, item.customerPhone) === key);
+  return order ? { key, name: order.customerName || "Cliente", phone: order.customerPhone || "", notes: "" } : null;
+}
+
+function openCustomerEditor(key = "") {
+  const customer = key ? customerRecord(key) : null;
+  byId("customerKey").value = key;
+  byId("customerNameEdit").value = customer?.name || "";
+  byId("customerPhoneEdit").value = customer?.phone || "";
+  byId("customerNotesEdit").value = customer?.notes || "";
+  byId("customerForm").hidden = false;
+  byId("customerNameEdit").focus();
+}
+
 function renderCustomers() {
   const term = (byId("customerSearch")?.value || "").toLowerCase().trim();
   const customers = new Map();
   orders.forEach(order => {
-    const key = String(order.customerPhone || order.customerName || "").replace(/\D/g, "") || String(order.customerName || "").toLowerCase();
+    const key = customerKey(order.customerName, order.customerPhone);
     if (!key) return;
-    const current = customers.get(key) || { name: order.customerName || "Cliente", phone: order.customerPhone || "", count: 0, total: 0, last: order.createdAt };
+    const current = customers.get(key) || { key, name: order.customerName || "Cliente", phone: order.customerPhone || "", notes: "", count: 0, total: 0, last: order.createdAt };
     current.count += 1;
     current.total += Number(order.total || 0);
     if (String(order.createdAt || "") > String(current.last || "")) current.last = order.createdAt;
     customers.set(key, current);
   });
-  const rows = [...customers.values()].filter(customer => !term || `${customer.name} ${customer.phone}`.toLowerCase().includes(term));
+  Object.entries(customerProfiles || {}).forEach(([key, profile]) => {
+    const current = customers.get(key) || { key, count: 0, total: 0, last: profile.createdAt || "" };
+    customers.set(key, { ...current, ...profile, key });
+  });
+  const hidden = new Set(hiddenCustomerKeys || []);
+  const rows = [...customers.values()]
+    .filter(customer => !hidden.has(customer.key))
+    .filter(customer => !term || `${customer.name} ${customer.phone} ${customer.notes || ""}`.toLowerCase().includes(term))
+    .sort((a, b) => String(b.last || "").localeCompare(String(a.last || "")));
   byId("customerList").innerHTML = rows.map(customer => `
     <article class="customer-row">
-      <strong>${customer.name}</strong>
-      <span>${customer.phone || "-"}</span>
+      <div><strong>${escapeHtml(customer.name || "Cliente")}</strong>${customer.notes ? `<small>${escapeHtml(customer.notes)}</small>` : ""}</div>
+      <span>${escapeHtml(customer.phone || "-")}</span>
       <span>${customer.count} pedido(s)</span>
       <strong>${money(customer.total)}</strong>
-      <a class="action-btn whatsapp-action" href="https://wa.me/${whatsappNumber(customer.phone)}" target="_blank" rel="noopener">WhatsApp</a>
+      <div class="customer-actions">
+        <button class="ghost" data-customer-orders="${encodeURIComponent(customer.key)}">Pedidos</button>
+        <a class="action-btn whatsapp-action" href="https://wa.me/${whatsappNumber(customer.phone)}" target="_blank" rel="noopener">WhatsApp</a>
+        <button class="ghost" data-edit-customer="${encodeURIComponent(customer.key)}">Editar</button>
+        <button class="danger" data-remove-customer="${encodeURIComponent(customer.key)}">Excluir</button>
+      </div>
     </article>
   `).join("") || `<p>Nenhum cliente encontrado.</p>`;
 }
@@ -476,6 +532,8 @@ function renderPromos() {
     <article class="promo-card">
       <strong>${promo.title}</strong>
       <p>${promo.text}</p>
+      <button class="ghost" data-edit-promo="${index}">Editar</button>
+      <button class="ghost" data-duplicate-promo="${index}">Duplicar</button>
       <button class="ghost" data-copy-promo="${index}">Copiar mensagem</button>
       <button class="danger" data-remove-promo="${index}">Excluir</button>
     </article>
@@ -564,12 +622,13 @@ document.body.addEventListener("change", event => {
 });
 
 document.body.addEventListener("click", async event => {
-  if (event.target.dataset.removePdv) {
-    pdvCart.splice(Number(event.target.dataset.removePdv), 1);
+  const target = event.target.closest("button, a") || event.target;
+  if (target.dataset.removePdv) {
+    pdvCart.splice(Number(target.dataset.removePdv), 1);
     renderPdv();
   }
-  if (event.target.dataset.quickStatus) {
-    const [id, status] = event.target.dataset.quickStatus.split(":");
+  if (target.dataset.quickStatus) {
+    const [id, status] = target.dataset.quickStatus.split(":");
     const order = orders.find(item => String(item.id) === String(id));
     if (order) {
       order.status = status;
@@ -578,53 +637,111 @@ document.body.addEventListener("click", async event => {
       renderAll();
     }
   }
-  if (event.target.dataset.copyOrder) {
-    const order = orders.find(item => String(item.id) === String(event.target.dataset.copyOrder));
+  if (target.dataset.copyOrder) {
+    const order = orders.find(item => String(item.id) === String(target.dataset.copyOrder));
     if (order) await navigator.clipboard.writeText(orderSummary(order));
   }
-  if (event.target.dataset.printOrder) {
-    const order = orders.find(item => String(item.id) === String(event.target.dataset.printOrder));
+  if (target.dataset.printOrder) {
+    const order = orders.find(item => String(item.id) === String(target.dataset.printOrder));
     if (order) printOrder(order);
   }
-  if (event.target.dataset.removeProduct) {
-    const index = Number(event.target.dataset.removeProduct);
+  if (target.dataset.editProduct) {
+    const item = menu[Number(target.dataset.editProduct)];
+    editingProductId = String(editingProductId) === String(item?.id) ? null : item?.id;
+    renderMenuEditor();
+    if (editingProductId) document.querySelector(`[data-menu-field="name"][data-index="${target.dataset.editProduct}"]`)?.focus();
+  }
+  if (target.dataset.duplicateProduct) {
+    const index = Number(target.dataset.duplicateProduct);
+    const source = menu[index];
+    if (source) {
+      const copy = { ...source, id: Date.now(), name: `${source.name} (cópia)`, active: false };
+      menu.splice(index + 1, 0, copy);
+      saveMenu();
+      runOnline(() => window.TokyoDb.saveProduct(copy, index + 1), "Falha ao duplicar produto online.");
+      renderMenuEditor();
+    }
+  }
+  if (target.dataset.productComplements) {
+    const product = menu[Number(target.dataset.productComplements)];
+    document.querySelector('[data-tab="complements"]')?.click();
+    byId("complementSearch").value = product?.name || "";
+    renderComplements();
+  }
+  if (target.dataset.removeProduct) {
+    const index = Number(target.dataset.removeProduct);
     const item = menu[index];
+    if (!item || !confirm(`Excluir o item "${item.name}"?`)) return;
     menu.splice(index, 1);
     saveMenu();
     runOnline(() => window.TokyoDb.deleteProduct(item.id), "Falha ao excluir produto online.");
     renderMenuEditor();
   }
-  if (event.target.dataset.copyPromo) {
-    const promo = promos[Number(event.target.dataset.copyPromo)];
+  if (target.dataset.editPromo) {
+    const index = Number(target.dataset.editPromo);
+    const promo = promos[index];
+    if (promo) {
+      byId("promoTitle").value = promo.title || "";
+      byId("promoText").value = promo.text || "";
+      byId("promoForm").dataset.editIndex = index;
+      byId("promoTitle").focus();
+    }
+  }
+  if (target.dataset.duplicatePromo) {
+    const promo = promos[Number(target.dataset.duplicatePromo)];
+    if (promo) {
+      const copy = { title: `${promo.title} (cópia)`, text: promo.text, created_at: new Date().toISOString() };
+      promos.unshift({ ...copy, createdAt: copy.created_at });
+      savePromos();
+      runOnline(() => window.TokyoDb.savePromo(copy), "Falha ao duplicar promoção online.");
+      renderPromos();
+    }
+  }
+  if (target.dataset.copyPromo) {
+    const promo = promos[Number(target.dataset.copyPromo)];
     if (promo) await navigator.clipboard.writeText(promo.text);
   }
-  if (event.target.dataset.removePromo) {
-    const promo = promos[Number(event.target.dataset.removePromo)];
-    promos.splice(Number(event.target.dataset.removePromo), 1);
+  if (target.dataset.removePromo) {
+    const index = Number(target.dataset.removePromo);
+    const promo = promos[index];
+    if (!promo || !confirm(`Excluir a promoção "${promo.title}"?`)) return;
+    promos.splice(index, 1);
     savePromos();
     if (promo?.id) runOnline(() => window.TokyoDb.deletePromo(promo.id), "Falha ao excluir promocao online.");
     renderPromos();
   }
-  if (event.target.dataset.addComplementItem) {
-    const group = complementGroups[Number(event.target.dataset.addComplementItem)];
+  if (target.dataset.duplicateComplement) {
+    const source = complementGroups[Number(target.dataset.duplicateComplement)];
+    if (source) {
+      const stamp = Date.now();
+      const copy = { ...source, id: stamp, name: `${source.name} (cópia)`, items: (source.items || []).map((item, index) => ({ ...item, id: stamp + index + 1 })) };
+      complementGroups.unshift(copy);
+      saveComplements();
+      runOnline(() => window.TokyoDb.saveComplement(copy), "Falha ao duplicar complemento online.");
+      renderComplements();
+    }
+  }
+  if (target.dataset.addComplementItem) {
+    const group = complementGroups[Number(target.dataset.addComplementItem)];
     if (!group) return;
     group.items = group.items || [];
     group.items.push({ id: Date.now(), name: "Novo complemento", price: 0, active: true });
     saveComplements();
-    scheduleComplementSave(Number(event.target.dataset.addComplementItem));
+    scheduleComplementSave(Number(target.dataset.addComplementItem));
     renderComplements();
   }
-  if (event.target.dataset.removeComplementItem) {
-    const [groupIndex, itemIndex] = event.target.dataset.removeComplementItem.split(":").map(Number);
+  if (target.dataset.removeComplementItem) {
+    const [groupIndex, itemIndex] = target.dataset.removeComplementItem.split(":").map(Number);
     const group = complementGroups[groupIndex];
     if (!group) return;
+    if (!confirm(`Excluir o complemento "${group.items?.[itemIndex]?.name || "sem nome"}"?`)) return;
     group.items.splice(itemIndex, 1);
     saveComplements();
     scheduleComplementSave(groupIndex);
     renderComplements();
   }
-  if (event.target.dataset.removeComplement) {
-    const index = Number(event.target.dataset.removeComplement);
+  if (target.dataset.removeComplement) {
+    const index = Number(target.dataset.removeComplement);
     const group = complementGroups[index];
     if (!confirm(`Excluir a lista "${group?.name || "sem nome"}"?`)) return;
     complementGroups.splice(index, 1);
@@ -632,15 +749,31 @@ document.body.addEventListener("click", async event => {
     if (group?.id) runOnline(() => window.TokyoDb.deleteComplement(group.id), "Falha ao excluir complemento online.");
     renderComplements();
   }
-  if (event.target.dataset.storeMode) {
-    storeStatus = STORE_STATUS[event.target.dataset.storeMode] || STORE_STATUS.open;
+  if (target.dataset.editCustomer) openCustomerEditor(decodeURIComponent(target.dataset.editCustomer));
+  if (target.dataset.removeCustomer) {
+    const key = decodeURIComponent(target.dataset.removeCustomer);
+    const customer = customerRecord(key);
+    if (!customer || !confirm(`Excluir o cadastro de "${customer.name}"? O histórico de pedidos será preservado.`)) return;
+    hiddenCustomerKeys = [...new Set([...(hiddenCustomerKeys || []), key])];
+    delete customerProfiles[key];
+    saveCustomerData();
+    renderCustomers();
+  }
+  if (target.dataset.customerOrders) {
+    const customer = customerRecord(decodeURIComponent(target.dataset.customerOrders));
+    byId("orderSearch").value = customer?.phone || customer?.name || "";
+    document.querySelector('[data-tab="orders"]')?.click();
+    renderOrders();
+  }
+  if (target.dataset.storeMode) {
+    storeStatus = STORE_STATUS[target.dataset.storeMode] || STORE_STATUS.open;
     saveStoreStatus();
     renderStoreControls();
   }
 });
 
 byId("addProduct").addEventListener("click", () => {
-  menu.unshift({
+  const item = {
     id: Date.now(),
     cat: "Nova categoria",
     name: "Novo item",
@@ -648,7 +781,9 @@ byId("addProduct").addEventListener("click", () => {
     price: 0,
     image: "",
     active: true
-  });
+  };
+  menu.unshift(item);
+  editingProductId = item.id;
   saveMenu();
   runOnline(() => window.TokyoDb.saveProduct(menu[0], 0), "Falha ao criar produto online.");
   renderMenuEditor();
@@ -674,12 +809,40 @@ byId("promoForm").addEventListener("submit", event => {
   const title = byId("promoTitle").value.trim();
   const text = byId("promoText").value.trim();
   if (!title || !text) return;
-  const promo = { title, text, created_at: new Date().toISOString() };
-  promos.unshift({ ...promo, createdAt: promo.created_at });
+  const editIndex = event.target.dataset.editIndex;
+  if (editIndex !== undefined && promos[Number(editIndex)]) {
+    const promo = promos[Number(editIndex)];
+    promo.title = title;
+    promo.text = text;
+    if (promo.id) runOnline(() => window.TokyoDb.updatePromo(promo.id, { title, text }), "Falha ao atualizar promoção online.");
+    delete event.target.dataset.editIndex;
+  } else {
+    const promo = { title, text, created_at: new Date().toISOString() };
+    promos.unshift({ ...promo, createdAt: promo.created_at });
+    runOnline(() => window.TokyoDb.savePromo(promo), "Falha ao salvar promocao online.");
+  }
   savePromos();
-  runOnline(() => window.TokyoDb.savePromo(promo), "Falha ao salvar promocao online.");
   event.target.reset();
   renderPromos();
+});
+
+byId("addCustomer").addEventListener("click", () => openCustomerEditor());
+byId("cancelCustomer").addEventListener("click", () => {
+  byId("customerForm").reset();
+  byId("customerForm").hidden = true;
+});
+byId("customerForm").addEventListener("submit", event => {
+  event.preventDefault();
+  const existingKey = byId("customerKey").value;
+  const name = byId("customerNameEdit").value.trim();
+  const phone = byId("customerPhoneEdit").value.trim();
+  const key = existingKey || customerKey(name, phone);
+  customerProfiles[key] = { ...(customerProfiles[key] || {}), name, phone, notes: byId("customerNotesEdit").value.trim(), createdAt: customerProfiles[key]?.createdAt || new Date().toISOString() };
+  hiddenCustomerKeys = (hiddenCustomerKeys || []).filter(item => item !== key);
+  saveCustomerData();
+  event.target.reset();
+  event.target.hidden = true;
+  renderCustomers();
 });
 
 byId("addComplementGroup").addEventListener("click", () => {
