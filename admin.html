@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin - Tokyo Sushi</title>
-  <link rel="stylesheet" href="admin.css?v=21">
+  <link rel="stylesheet" href="admin.css?v=23">
 </head>
 <body class="admin-locked">
   <section class="login-screen" id="loginScreen">
@@ -24,7 +24,7 @@
       <span>Administração</span>
     </div>
     <div class="top-actions">
-      <a href="index.html?v=21" target="_blank" rel="noopener">Abrir cardápio</a>
+      <a href="index.html?v=23" target="_blank" rel="noopener">Abrir cardápio</a>
       <button id="logoutAdmin">Sair</button>
     </div>
   </header>
@@ -34,8 +34,10 @@
 
     <nav class="tabs" aria-label="Módulos">
       <button class="active" data-tab="orders">Pedidos</button>
+      <button data-tab="cash">Caixa</button>
       <button data-tab="menu">Cardápio</button>
       <button data-tab="complements">Complementos</button>
+      <button data-tab="customers">Clientes</button>
       <button data-tab="reports">Relatórios</button>
       <button data-tab="marketing">Marketing</button>
       <button data-tab="settings">Configurações</button>
@@ -48,6 +50,15 @@
           <p>Controle operacional dos pedidos recebidos pelo cardápio.</p>
         </div>
         <div class="actions">
+          <input id="orderSearch" placeholder="Pedido, cliente ou celular">
+          <select id="orderStatusFilter" aria-label="Filtrar pedidos por status">
+            <option value="">Todos os status</option>
+            <option>Recebido</option>
+            <option>Preparando</option>
+            <option>Pronto</option>
+            <option>Finalizado</option>
+            <option>Cancelado</option>
+          </select>
           <button class="ghost" id="clearDone">Limpar finalizados</button>
         </div>
       </div>
@@ -63,6 +74,16 @@
         </div>
       </div>
       <div class="orders-list" id="ordersList"></div>
+    </section>
+
+    <section class="panel" id="cashPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Caixa</h1>
+          <p>Resumo financeiro dos pedidos de hoje.</p>
+        </div>
+      </div>
+      <div class="report-grid" id="cashSummary"></div>
     </section>
 
     <section class="panel" id="complementsPanel">
@@ -93,11 +114,27 @@
       <div class="menu-editor" id="menuEditor"></div>
     </section>
 
+    <section class="panel" id="customersPanel">
+      <div class="panel-head">
+        <div>
+          <h1>Clientes</h1>
+          <p>Histórico de clientes criado automaticamente pelos pedidos.</p>
+        </div>
+        <div class="actions"><input id="customerSearch" placeholder="Buscar nome ou celular"></div>
+      </div>
+      <div class="customer-list" id="customerList"></div>
+    </section>
+
     <section class="panel" id="reportsPanel">
       <div class="panel-head">
         <div>
           <h1>Relatórios</h1>
           <p>Resumo de vendas e produtos mais vendidos.</p>
+        </div>
+        <div class="actions report-filters">
+          <label>De <input type="date" id="reportStart"></label>
+          <label>Até <input type="date" id="reportEnd"></label>
+          <button class="ghost" id="exportReport">Exportar CSV</button>
         </div>
       </div>
       <div class="report-grid" id="reports"></div>
@@ -122,21 +159,21 @@
       <div class="panel-head">
         <div>
           <h1>Configurações</h1>
-          <p>Próximas integrações planejadas para a operação.</p>
+          <p>Status dos recursos da operação.</p>
         </div>
       </div>
       <div class="settings-grid">
-        <article><strong>WhatsApp automático</strong><span>Pedido recebido, pronto para retirada e recuperação de carrinho.</span></article>
-        <article><strong>Impressora</strong><span>Integração futura com impressão de pedidos na cozinha.</span></article>
-        <article><strong>Banco de dados online</strong><span>Pedidos e cardápio sincronizados em todos os dispositivos.</span></article>
-        <article><strong>Usuários</strong><span>Acesso para atendente, cozinha e administrador.</span></article>
+        <article><strong>WhatsApp</strong><span>Contato, resumo e aviso de pedido pronto disponíveis no pedido.</span></article>
+        <article><strong>Banco de dados</strong><span id="databaseStatus">Verificando conexão...</span></article>
+        <article><strong>Cardápio</strong><span id="settingsStoreStatus">Verificando status...</span></article>
+        <article><strong>Impressão de cozinha</strong><span>Preparada como próxima integração, sem afetar a operação atual.</span></article>
       </div>
     </section>
   </main>
 
-  <script src="config.js?v=21"></script>
-  <script src="db.js?v=21"></script>
-  <script src="menu-data.js?v=21"></script>
-  <script src="admin.js?v=21"></script>
+  <script src="config.js?v=23"></script>
+  <script src="db.js?v=23"></script>
+  <script src="menu-data.js?v=23"></script>
+  <script src="admin.js?v=23"></script>
 </body>
 </html>

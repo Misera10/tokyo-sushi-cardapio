@@ -21,13 +21,25 @@ let storeStatus = JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") |
 const productTimers = {};
 const complementTimers = {};
 
+function withDefaultComplements(groups = []) {
+  const list = Array.isArray(groups) ? [...groups] : [];
+  DEFAULT_COMPLEMENTS.forEach(defaultGroup => {
+    if (!list.some(group => String(group.id) === String(defaultGroup.id))) {
+      list.push(defaultGroup);
+    }
+  });
+  return list;
+}
+
+complementGroups = withDefaultComplements(complementGroups);
+
 async function loadOnlineData() {
   if (!window.TokyoDb?.enabled) return;
   try {
     menu = await window.TokyoDb.loadMenu(DEFAULT_MENU);
     orders = await window.TokyoDb.loadOrders();
     promos = await window.TokyoDb.loadPromos();
-    complementGroups = await window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS).catch(() => complementGroups);
+    complementGroups = withDefaultComplements(await window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS).catch(() => complementGroups));
     storeStatus = await window.TokyoDb.loadSetting("store_status", STORE_STATUS.open).catch(() => storeStatus);
     localStorage.setItem("tokyoMenu", JSON.stringify(menu));
     localStorage.setItem("tokyoOrders", JSON.stringify(orders));
@@ -138,15 +150,34 @@ function renderMetrics() {
 
 function renderStoreControls() {
   byId("storeStatusAdmin").textContent = storeStatus.label || STORE_STATUS.open.label;
+  if (byId("settingsStoreStatus")) byId("settingsStoreStatus").textContent = storeStatus.label || STORE_STATUS.open.label;
+  if (byId("databaseStatus")) byId("databaseStatus").textContent = window.TokyoDb?.enabled ? "Online e sincronizado pelo Supabase." : "Modo local neste dispositivo.";
   document.querySelectorAll("[data-store-mode]").forEach(button => {
     button.classList.toggle("active-mode", button.dataset.storeMode === storeStatus.mode);
   });
 }
 
+function filteredOrders() {
+  const term = (byId("orderSearch")?.value || "").toLowerCase().trim();
+  const status = byId("orderStatusFilter")?.value || "";
+  return orders.filter(order => {
+    const text = `${order.id} ${order.customerName || ""} ${order.customerPhone || ""}`.toLowerCase();
+    return (!term || text.includes(term)) && (!status || order.status === status);
+  });
+}
+
 function nextStatuses(status) {
-  if (status === "Recebido") return ["Preparando", "Cancelado"];
-  if (status === "Preparando") return ["Pronto", "Cancelado"];
-  if (status === "Pronto") return ["Finalizado"];
+  if (status === "Recebido") return [
+    { label: "Preparar", value: "Preparando", kind: "primary" },
+    { label: "Cancelar", value: "Cancelado", kind: "danger" }
+  ];
+  if (status === "Preparando") return [
+    { label: "Marcar pronto", value: "Pronto", kind: "primary" },
+    { label: "Cancelar", value: "Cancelado", kind: "danger" }
+  ];
+  if (status === "Pronto") return [
+    { label: "Finalizar", value: "Finalizado", kind: "primary" }
+  ];
   return [];
 }
 
@@ -156,10 +187,15 @@ function orderCard(order) {
     <article class="order-card compact">
       <div>
         <div class="order-title">
-          <strong>#${order.id} - ${order.customerName || "Cliente"}</strong>
-          <span>${formatDate(order.createdAt)}</span>
+          <strong>${order.customerName || "Cliente"}</strong>
+          <span>#${order.id}</span>
         </div>
-        <p>WhatsApp: ${order.customerPhone || "-"} | ${order.payment || "-"} | <strong>${money(order.total)}</strong></p>
+        <div class="order-meta">
+          <span>${formatDate(order.createdAt)}</span>
+          <span>${order.customerPhone || "-"}</span>
+          <span>${order.payment || "-"}</span>
+          <strong>${money(order.total)}</strong>
+        </div>
         <ul class="order-items">
           ${order.items.map(item => `
             <li>
@@ -171,29 +207,30 @@ function orderCard(order) {
         ${order.notes ? `<p><strong>Obs.:</strong> ${order.notes}</p>` : ""}
       </div>
       <div class="order-actions">
-        ${actions.map(status => `<button class="${status === "Cancelado" ? "danger" : "primary"}" data-quick-status="${order.id}:${status}">${status}</button>`).join("")}
-        <a class="whatsapp-action" href="https://wa.me/${whatsappNumber(order.customerPhone)}?text=${orderWhatsappMessage(order)}" target="_blank" rel="noopener" title="Abrir WhatsApp do cliente">
+        ${actions.map(action => `<button class="action-btn ${action.kind}" data-quick-status="${order.id}:${action.value}">${action.label}</button>`).join("")}
+        <a class="action-btn whatsapp-action" href="https://wa.me/${whatsappNumber(order.customerPhone)}?text=${orderWhatsappMessage(order)}" target="_blank" rel="noopener" title="Abrir WhatsApp do cliente">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.9 9.9 0 0 0-8.45 15.09L2.4 21.6l4.62-1.16A9.95 9.95 0 1 0 12.04 2Zm0 2a7.95 7.95 0 0 1 6.72 12.2 7.93 7.93 0 0 1-10.93 2.32l-.38-.23-2.24.56.58-2.17-.25-.4A7.95 7.95 0 0 1 12.04 4Zm-3.05 3.7c-.18 0-.46.06-.7.33-.24.26-.92.9-.92 2.2s.94 2.55 1.07 2.73c.13.18 1.82 2.91 4.51 3.96 2.23.88 2.68.7 3.16.66.49-.05 1.57-.64 1.8-1.26.22-.62.22-1.15.15-1.26-.06-.11-.24-.18-.51-.31-.27-.13-1.57-.78-1.82-.87-.24-.09-.42-.13-.6.13-.18.27-.69.87-.85 1.04-.16.18-.31.2-.58.07-.27-.13-1.13-.42-2.15-1.33-.8-.71-1.34-1.59-1.49-1.86-.16-.27-.02-.42.12-.55.12-.12.27-.31.4-.47.13-.16.18-.27.27-.44.09-.18.05-.33-.02-.47-.07-.13-.6-1.45-.82-1.99-.22-.52-.44-.45-.6-.46h-.44Z"/></svg>
           WhatsApp
         </a>
-        <button class="ghost" data-copy-order="${order.id}">Copiar</button>
-        <a class="ghost" href="https://wa.me/${whatsappNumber(order.customerPhone)}?text=${readyMessage(order)}" target="_blank" rel="noopener">Pronto</a>
+        <button class="action-btn ghost" data-copy-order="${order.id}">Copiar</button>
+        <a class="action-btn ghost" href="https://wa.me/${whatsappNumber(order.customerPhone)}?text=${readyMessage(order)}" target="_blank" rel="noopener">Avisar</a>
       </div>
     </article>
   `;
 }
 
 function renderOrders() {
-  if (!orders.length) {
+  const visibleOrders = filteredOrders();
+  if (!visibleOrders.length) {
     byId("ordersList").innerHTML = `<div class="order-card"><p>Nenhum pedido salvo ainda.</p></div>`;
     return;
   }
 
   const columns = [
-    ["Recebidos", orders.filter(order => order.status === "Recebido")],
-    ["Preparando", orders.filter(order => order.status === "Preparando")],
-    ["Prontos", orders.filter(order => order.status === "Pronto")],
-    ["Fechados", orders.filter(order => ["Finalizado", "Cancelado"].includes(order.status)).slice(0, 12)]
+    ["Recebidos", visibleOrders.filter(order => order.status === "Recebido")],
+    ["Preparando", visibleOrders.filter(order => order.status === "Preparando")],
+    ["Prontos", visibleOrders.filter(order => order.status === "Pronto")],
+    ["Fechados", visibleOrders.filter(order => ["Finalizado", "Cancelado"].includes(order.status)).slice(0, 24)]
   ];
 
   byId("ordersList").innerHTML = `
@@ -267,16 +304,27 @@ function renderMenuEditor() {
       <div class="row-actions">
         <button class="danger" data-remove-product="${index}">Excluir</button>
       </div>
+      <p class="product-links">Complementos: ${complementGroups.filter(group => (group.linkedProductIds || []).map(String).includes(String(item.id))).map(group => group.name).join(", ") || "nenhum vinculado"}</p>
     </article>
   `).join("");
 }
 
+function reportOrders() {
+  const start = byId("reportStart")?.value || "";
+  const end = byId("reportEnd")?.value || "";
+  return orders.filter(order => {
+    const date = String(order.createdAt || "").slice(0, 10);
+    return order.status !== "Cancelado" && (!start || date >= start) && (!end || date <= end);
+  });
+}
+
 function renderReports() {
-  const total = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const selectedOrders = reportOrders();
+  const total = selectedOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
   const byPayment = {};
   const byProduct = {};
 
-  orders.forEach(order => {
+  selectedOrders.forEach(order => {
     byPayment[order.payment || "Sem pagamento"] = (byPayment[order.payment || "Sem pagamento"] || 0) + Number(order.total || 0);
     order.items.forEach(item => {
       byProduct[item.name] = (byProduct[item.name] || 0) + item.qty;
@@ -296,10 +344,63 @@ function renderReports() {
 
   byId("reports").innerHTML = `
     <article class="report-box"><h2>Faturamento total</h2><strong>${money(total)}</strong></article>
-    <article class="report-box"><h2>Total de pedidos</h2><strong>${orders.length}</strong></article>
+    <article class="report-box"><h2>Total de pedidos</h2><strong>${selectedOrders.length}</strong></article>
     <article class="report-box"><h2>Pagamentos</h2>${paymentRows}</article>
     <article class="report-box"><h2>Mais vendidos</h2>${productRows}</article>
   `;
+}
+
+function renderCash() {
+  const today = todayKey();
+  const todayOrders = orders.filter(order => order.createdAt?.slice(0, 10) === today && order.status !== "Cancelado");
+  const payments = todayOrders.reduce((result, order) => {
+    const name = order.payment || "Não informado";
+    result[name] = (result[name] || 0) + Number(order.total || 0);
+    return result;
+  }, {});
+  const total = todayOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  byId("cashSummary").innerHTML = `
+    <article class="report-box"><h2>Faturamento hoje</h2><strong>${money(total)}</strong></article>
+    <article class="report-box"><h2>Pedidos válidos</h2><strong>${todayOrders.length}</strong></article>
+    <article class="report-box"><h2>Por pagamento</h2>${Object.entries(payments).map(([name, value]) => `<p>${name}: <strong>${money(value)}</strong></p>`).join("") || "<p>Sem vendas hoje.</p>"}</article>
+    <article class="report-box"><h2>Ticket médio</h2><strong>${money(todayOrders.length ? total / todayOrders.length : 0)}</strong></article>
+  `;
+}
+
+function renderCustomers() {
+  const term = (byId("customerSearch")?.value || "").toLowerCase().trim();
+  const customers = new Map();
+  orders.forEach(order => {
+    const key = String(order.customerPhone || order.customerName || "").replace(/\D/g, "") || String(order.customerName || "").toLowerCase();
+    if (!key) return;
+    const current = customers.get(key) || { name: order.customerName || "Cliente", phone: order.customerPhone || "", count: 0, total: 0, last: order.createdAt };
+    current.count += 1;
+    current.total += Number(order.total || 0);
+    if (String(order.createdAt || "") > String(current.last || "")) current.last = order.createdAt;
+    customers.set(key, current);
+  });
+  const rows = [...customers.values()].filter(customer => !term || `${customer.name} ${customer.phone}`.toLowerCase().includes(term));
+  byId("customerList").innerHTML = rows.map(customer => `
+    <article class="customer-row">
+      <strong>${customer.name}</strong>
+      <span>${customer.phone || "-"}</span>
+      <span>${customer.count} pedido(s)</span>
+      <strong>${money(customer.total)}</strong>
+      <a class="action-btn whatsapp-action" href="https://wa.me/${whatsappNumber(customer.phone)}" target="_blank" rel="noopener">WhatsApp</a>
+    </article>
+  `).join("") || `<p>Nenhum cliente encontrado.</p>`;
+}
+
+function exportReportCsv() {
+  const rows = reportOrders();
+  const csv = [["Pedido", "Data", "Cliente", "Celular", "Pagamento", "Status", "Total"], ...rows.map(order => [order.id, formatDate(order.createdAt), order.customerName, order.customerPhone, order.payment, order.status, Number(order.total || 0).toFixed(2)])]
+    .map(row => row.map(value => `"${String(value ?? "").replace(/"/g, '""')}"`).join(";"))
+    .join("\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
+  link.download = `relatorio-tokyo-sushi-${todayKey()}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function renderPromos() {
@@ -320,6 +421,8 @@ function renderAll() {
   renderMenuEditor();
   renderComplements();
   renderReports();
+  renderCash();
+  renderCustomers();
   renderPromos();
 }
 
@@ -518,6 +621,12 @@ byId("addComplementGroup").addEventListener("click", () => {
 });
 
 byId("complementSearch").addEventListener("input", renderComplements);
+byId("orderSearch").addEventListener("input", renderOrders);
+byId("orderStatusFilter").addEventListener("change", renderOrders);
+byId("customerSearch").addEventListener("input", renderCustomers);
+byId("reportStart").addEventListener("change", renderReports);
+byId("reportEnd").addEventListener("change", renderReports);
+byId("exportReport").addEventListener("click", exportReportCsv);
 
 document.body.addEventListener("input", event => {
   const field = event.target.dataset.menuField;

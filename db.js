@@ -175,7 +175,13 @@
         await Promise.all(defaultComplements.map(group => this.saveComplement(group)));
         return defaultComplements;
       }
-      return rows.map(complementFromDb);
+      const groups = rows.map(complementFromDb);
+      const missing = defaultComplements.filter(defaultGroup => !groups.some(group => String(group.id) === String(defaultGroup.id)));
+      if (missing.length) {
+        await Promise.all(missing.map(group => this.saveComplement(group)));
+        return [...groups, ...missing];
+      }
+      return groups;
     },
     async saveComplement(group) {
       if (!enabled) return;

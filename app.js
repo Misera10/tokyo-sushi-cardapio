@@ -30,6 +30,18 @@ const escapeHtml = value => String(value || "").replace(/[&<>"']/g, char => ({
   "'": "&#39;"
 }[char]));
 
+function withDefaultComplements(groups = []) {
+  const list = Array.isArray(groups) ? [...groups] : [];
+  DEFAULT_COMPLEMENTS.forEach(defaultGroup => {
+    if (!list.some(group => String(group.id) === String(defaultGroup.id))) {
+      list.push(defaultGroup);
+    }
+  });
+  return list;
+}
+
+complementGroups = withDefaultComplements(complementGroups);
+
 function formatPhone(value) {
   const digits = normalizePhone(value).slice(0, 11);
   if (digits.length <= 2) return digits;
@@ -73,10 +85,12 @@ async function loadMenuFromDb() {
 async function loadComplementsFromDb() {
   if (!window.TokyoDb?.enabled) return;
   try {
-    complementGroups = await window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS);
+    complementGroups = withDefaultComplements(await window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS));
     localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
   } catch (error) {
     console.warn("Falha ao carregar complementos online. Usando cache local.", error);
+    complementGroups = withDefaultComplements(complementGroups);
+    localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
   }
 }
 
