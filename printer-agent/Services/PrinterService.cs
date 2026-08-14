@@ -37,7 +37,8 @@ public sealed class PrinterService
             new(""),
             new("Se esta comanda saiu completa, o agente está pronto.", false, false, Size: 9)
         };
-        PrintLines(printerName, lines, fontSize, marginLeft, marginRight, marginTop, marginBottom, 1, "Tokyo Sushi · Comanda de teste");
+        PrintLines(printerName, lines, fontSize, marginLeft, marginRight, marginTop, marginBottom, 1, "Tokyo Sushi · Comanda de teste",
+            int.TryParse(paperWidth, out var paperMm) ? paperMm : 0);
     }
 
     public void PrintOrder(string printerName, PrintOrderRequest request)
@@ -54,7 +55,8 @@ public sealed class PrinterService
             request.MarginTop,
             request.MarginBottom,
             Math.Clamp(request.Copies, 1, 3),
-            $"Tokyo Sushi · Pedido {request.OrderId}");
+            $"Tokyo Sushi · Pedido {request.OrderId}",
+            int.TryParse(request.PaperWidth, out var paperMm) ? paperMm : 0);
     }
 
     private static IReadOnlyList<ReceiptLine> BuildOrderLines(PrintOrderRequest request)
@@ -120,7 +122,7 @@ public sealed class PrinterService
         return lines;
     }
 
-    private static void PrintLines(string printerName, IReadOnlyList<ReceiptLine> lines, int fontSize, int marginLeftMm, int marginRightMm, int marginTopMm, int marginBottomMm, int copies, string title)
+    private static void PrintLines(string printerName, IReadOnlyList<ReceiptLine> lines, int fontSize, int marginLeftMm, int marginRightMm, int marginTopMm, int marginBottomMm, int copies, string title, int paperWidthMm = 0)
     {
         using var document = new PrintDocument
         {
@@ -156,7 +158,13 @@ public sealed class PrinterService
             // the last characters remain inside the print head on compact
             // rolls and on drivers with hidden right-side margins.
             var safeWidth = 46f / 25.4f * dpiX;
-            var availableWidth = Math.Max(80f, pageWidth - leftMargin - rightMargin);
+            // Largura fisica do rolo (configurada no admin/agente). Drivers
+            // termicos reportam pagina virtual mais larga que o rolo real;
+            // usar o papel configurado como referencia evita cabeçalho
+            // centralizado "andando" para a direita e sendo cortado.
+            var physicalWidth = paperWidthMm > 0 ? paperWidthMm / 25.4f * dpiX : pageWidth;
+            var centerX = pageLeft + physicalWidth / 2f;
+            var availableWidth = Math.Max(80f, physicalWidth - leftMargin - rightMargin);
             var width = Math.Max(80f, Math.Min(availableWidth, safeWidth));
             var left = pageLeft + leftMargin;
             // Center the header/footer in the same conservative printable
@@ -164,7 +172,9 @@ public sealed class PrinterService
             // virtual page wider than the actual print head; centering in
             // that virtual page is what pushed the header to the right.
             var centeredWidth = width;
-            var centeredLeft = left;
+            // Coluna centralizada no CENTRO do papel fisico configurado
+            // (fallback: coluna ancorada a esquerda, comportamento antigo).
+            var centeredLeft = paperWidthMm > 0 ? centerX - width / 2f : left;
             var y = pageTop + top;
             var bottom = pageTop + pageHeight - bottomMargin;
             var sizeScale = Math.Clamp(fontSize, 6, 14) / 9f;

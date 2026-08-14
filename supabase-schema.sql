@@ -204,7 +204,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select exists (
     select 1
@@ -523,7 +523,7 @@ create or replace function public.tks_create_order(p_order jsonb)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   is_admin boolean := false;
@@ -840,7 +840,7 @@ create or replace function public.tks_open_cash_session(p_opening_amount numeric
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   session_row public.tks_cash_sessions%rowtype;
@@ -878,7 +878,7 @@ create or replace function public.tks_record_cash_movement(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   movement_row public.tks_cash_movements%rowtype;
@@ -911,7 +911,7 @@ create or replace function public.tks_close_cash_session(p_session_id bigint, p_
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   session_row public.tks_cash_sessions%rowtype;

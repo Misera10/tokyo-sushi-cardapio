@@ -104,4 +104,5 @@ O editor aparece progressivamente dentro do card do pedido, sem retirar o operad
   - Mitigação: sessão aberta e movimentos são persistidos no banco; o fechamento exige valor contado e registra diferença calculada no servidor.
 - Risco: recuperação de senha ou login redirecionado para outro sistema no projeto Supabase compartilhado.
   - Mitigação: callback explícito por ambiente para `/admin.html`, URLs locais e de produção liberadas no Supabase e validação do usuário em `tks_admins` após o login.
+- Backup e recuperação: o schema e as migrações ficam no Git; os dados `tks_*` possuem exportador REST autenticado em `scripts/export-tks-backup.ps1`. O backup local é ignorado pelo Git e nunca contém a chave de servidor. A recuperação deve ser testada primeiro em ambiente separado e não usa `DELETE`/`TRUNCATE` automático.
 

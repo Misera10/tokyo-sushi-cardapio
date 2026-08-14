@@ -21,6 +21,7 @@ supabase/.branches/
 # Releases and local generated outputs
 /output/
 /test-results/
+/backups/
 /TokyoSushiPrintSetup-*.exe
 
 # Local agent packages and dependency installs

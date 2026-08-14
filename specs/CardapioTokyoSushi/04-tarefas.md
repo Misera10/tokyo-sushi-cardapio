@@ -4,7 +4,7 @@
 
 - [ ] Confirmar dados comerciais, endereço, horário, telefone e política de retirada.
 - [ ] Aplicar o `supabase-schema.sql` atualizado no projeto Supabase e registrar o UUID do administrador em `tks_admins`.
-- [ ] Validar anonimamente que `tks_orders` não possui leitura direta e que a criação ocorre por `tks_create_order(jsonb)`.
+- [x] Validar anonimamente que `tks_orders` não possui leitura direta e que a criação ocorre por `tks_create_order(jsonb)`.
 - [ ] Validar fluxo completo no navegador em desktop e mobile.
 - [ ] Revisar checklist de segurança, entrega e publicação.
 - [ ] Validar abertura, movimento e fechamento do caixa com as RPCs relacionais.
@@ -21,6 +21,8 @@
 - [ ] Aprovar a nova direção visual do Admin antes de iniciar os testes de CRUD.
 - [ ] Validar o fluxo de retirada com três etapas e operação de operador único.
 - [x] Bloquear baixa de pedido não pago no Admin e no banco, mantendo o valor pendente fora do faturamento recebido.
+- [x] Reforçar `search_path` das funções `SECURITY DEFINER` e criar rotina versionada de exportação dos dados `tks_*`.
+- [ ] Executar e testar um backup real com chave de servidor fornecida por ambiente seguro; nunca versionar o arquivo gerado.
 - [ ] Validar busca de clientes no PDV e seleção de adicionais vinculados com regras de quantidade.
 - [ ] Validar descontos, acréscimos, cupons, pagamento em dinheiro e cálculo de troco no PDV.
 - [ ] Aplicar a migração de atributos ampliados de produtos e validar o CRUD do editor de cardápio.
