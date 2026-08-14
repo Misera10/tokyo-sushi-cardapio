@@ -3,65 +3,119 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f2b36">
   <title>Admin - Tokyo Sushi</title>
-  <link rel="stylesheet" href="admin.css?v=27">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="admin-manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="admin.css?v=20260814-payment-guard-1">
 </head>
 <body class="admin-locked">
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+  <div class="preview-banner" id="previewBanner" hidden>Modo de teste · alterações ficam somente neste navegador</div>
+  <div class="confirm-overlay" id="confirmDialog" hidden>
+    <section class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
+      <span class="dialog-kicker">Confirmação</span>
+      <h2 id="confirmDialogTitle">Confirmar ação</h2>
+      <p id="confirmDialogMessage"></p>
+      <div class="confirm-actions">
+        <button class="ghost" id="confirmCancel" type="button">Cancelar</button>
+        <button class="danger" id="confirmAccept" type="button">Confirmar</button>
+      </div>
+    </section>
+  </div>
+  <!--
+    THESIS: Um painel de balcão que lê como uma faixa de comandas organizadas, não como uma planilha genérica.
+    OWN-WORLD: Superfícies brancas e neutras, plum como assinatura, carimbo dourado e verde de operação em uma linguagem de ticket japonês.
+    STORY: A equipe identifica o estado da loja, escolhe o módulo e age no pedido certo sem procurar a informação.
+    FIRST VIEWPORT: Marca no topo, métricas compactas, navegação persistente e o Kanban de pedidos como superfície principal.
+    FORM: Faixa de comandas e trilho de status, posição 3 da lista fundamentada, seed 6847dcf1.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+  -->
+  <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
   <section class="login-screen" id="loginScreen">
     <form class="login-card" id="loginForm">
-      <strong>Tokyo Sushi</strong>
+      <div class="login-brand">
+        <img src="assets/tokyo-logo-instagram.jpg" alt="Tokyo Sushi">
+        <div>
+          <strong>Tokyo Sushi</strong>
+          <span>Painel de operação</span>
+        </div>
+      </div>
       <h1>Administração</h1>
       <p>Entre para acessar pedidos, cardápio e relatórios.</p>
-      <input id="adminPassword" type="password" placeholder="Senha do admin" autocomplete="current-password">
-      <button class="primary">Entrar</button>
+      <label class="visually-hidden" for="adminEmail">E-mail do administrador</label>
+      <input id="adminEmail" type="email" placeholder="E-mail do administrador" autocomplete="username" required>
+      <label class="visually-hidden" for="adminPassword">Senha do administrador</label>
+      <input id="adminPassword" type="password" placeholder="Senha do admin" autocomplete="current-password" required>
+      <button class="primary" id="loginButton" type="submit">Entrar</button>
+      <button class="auth-mode-toggle" id="signupModeButton" type="button">Criar uma conta nova</button>
+      <button class="auth-mode-toggle" id="forgotPasswordButton" type="button">Esqueci minha senha</button>
+      <p class="auth-helper" id="authHelper">Use seu e-mail e sua senha para acessar o painel.</p>
       <small id="loginMessage"></small>
     </form>
   </section>
 
   <header class="admin-top admin-content">
-    <div>
-      <strong>Tokyo Sushi</strong>
-      <span>Administração</span>
+    <div class="admin-brand">
+      <img src="assets/tokyo-logo-instagram.jpg" alt="Tokyo Sushi">
+      <div>
+        <strong>Tokyo Sushi</strong>
+        <span>Administração</span>
+      </div>
     </div>
     <div class="top-actions">
       <a href="index.html?v=27" target="_blank" rel="noopener">Abrir cardápio</a>
+      <button id="adminInstallBtn" type="button" hidden>Instalar app</button>
+      <button class="notification-control" id="enableNotifications" type="button" hidden aria-live="polite" aria-pressed="false" title="Verificar estado dos alertas">Ativar alertas</button>
       <button id="logoutAdmin">Sair</button>
     </div>
   </header>
 
-  <main class="admin-shell admin-content">
+  <main class="admin-shell admin-content" id="main-content">
+    <div class="metrics-toolbar">
+      <span>Resumo de hoje</span>
+      <button class="metrics-privacy-toggle" id="toggleMetricsVisibility" type="button" aria-pressed="false" aria-label="Ocultar valores do resumo" title="Ocultar valores">
+        <svg class="metrics-eye-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.3 12s3.5-6 9.7-6 9.7 6 9.7 6-3.5 6-9.7 6-9.7-6-9.7-6Zm9.7 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path class="metrics-eye-slash" d="m4 4 16 16"/></svg>
+        <span>Ocultar valores</span>
+      </button>
+    </div>
     <section class="metrics" id="metrics"></section>
 
-    <nav class="tabs" aria-label="Módulos">
-      <button class="active" data-tab="orders">Pedidos</button>
-      <button data-tab="pdv">PDV</button>
-      <button data-tab="kds">Cozinha</button>
-      <button data-tab="cash">Caixa</button>
-      <button data-tab="menu">Cardápio</button>
-      <button data-tab="complements">Complementos</button>
-      <button data-tab="customers">Clientes</button>
-      <button data-tab="reports">Relatórios</button>
-      <button data-tab="marketing">Marketing</button>
-      <button data-tab="settings">Configurações</button>
+    <nav class="tabs" aria-label="Módulos administrativos">
+      <button class="active" type="button" data-tab="orders" aria-current="page">Pedidos</button>
+      <button type="button" data-tab="pdv">PDV</button>
+      <button type="button" data-tab="kds">Cozinha</button>
+      <button type="button" data-tab="cash">Caixa</button>
+      <button type="button" data-tab="menu">Cardápio</button>
+      <button type="button" data-tab="complements">Complementos</button>
+      <button type="button" data-tab="customers">Clientes</button>
+      <button type="button" data-tab="reports">Financeiro</button>
+      <button type="button" data-tab="marketing">Marketing</button>
+      <button type="button" data-tab="settings">Configurações</button>
     </nav>
 
     <section class="panel active" id="ordersPanel">
       <div class="panel-head">
         <div>
           <h1>Pedidos</h1>
-          <p>Controle operacional dos pedidos recebidos pelo cardápio.</p>
+          <p>Receba, aceite, deixe pronto e dê baixa sem sair desta tela.</p>
         </div>
         <div class="actions">
-          <input id="orderSearch" placeholder="Pedido, cliente ou celular">
+          <label class="visually-hidden" for="orderSearch">Buscar pedido, cliente ou celular</label>
+          <input id="orderSearch" placeholder="Buscar pedido, cliente ou celular" aria-label="Buscar pedido, cliente ou celular">
           <select id="orderStatusFilter" aria-label="Filtrar pedidos por status">
             <option value="">Todos os status</option>
             <option>Recebido</option>
-            <option>Preparando</option>
+            <option value="Preparando">Aceitos</option>
             <option>Pronto</option>
             <option>Finalizado</option>
             <option>Cancelado</option>
           </select>
-          <button class="ghost" id="clearDone">Limpar finalizados</button>
+          <button class="ghost" id="clearDone" type="button">Limpar finalizados</button>
+          <button class="ghost" id="showActiveOrders" type="button" hidden>Voltar aos pedidos ativos</button>
         </div>
       </div>
       <div class="pdv-bar">
@@ -70,9 +124,8 @@
           <strong id="storeStatusAdmin">Carregando...</strong>
         </div>
         <div class="pdv-actions" role="group" aria-label="Status do cardápio">
-          <button class="success" data-store-mode="open">Abrir</button>
-          <button class="warning" data-store-mode="paused">Pausar</button>
-          <button class="danger" data-store-mode="closed">Fechar</button>
+          <button class="success" type="button" data-store-mode="open" aria-pressed="false">Abrir</button>
+          <button class="danger" type="button" data-store-mode="closed" aria-pressed="false">Fechar</button>
         </div>
       </div>
       <div class="orders-list" id="ordersList"></div>
@@ -82,33 +135,72 @@
       <div class="panel-head">
         <div>
           <h1>PDV</h1>
-          <p>Registre rapidamente pedidos recebidos no balcão ou pelo telefone.</p>
+          <p>Lance pedidos de retirada e acompanhe as três etapas da operação.</p>
         </div>
       </div>
       <div class="pdv-layout">
         <form class="pdv-form" id="pdvForm">
           <div class="form-grid">
-            <label>Cliente<input id="pdvCustomer" placeholder="Nome do cliente" required></label>
-            <label>Celular<input id="pdvPhone" placeholder="(99) 99999-9999"></label>
+            <label>Cliente<input id="pdvCustomer" list="pdvCustomerSuggestions" autocomplete="off" placeholder="Comece a digitar o nome" required><datalist id="pdvCustomerSuggestions"></datalist></label>
+            <label>Celular<input id="pdvPhone" list="pdvPhoneSuggestions" autocomplete="off" placeholder="(99) 99999-9999" required><datalist id="pdvPhoneSuggestions"></datalist></label>
             <label>Pagamento<select id="pdvPayment"><option>Pix</option><option>Cartão na retirada</option><option>Dinheiro</option></select></label>
           </div>
-          <div class="pdv-add-line">
+          <section class="pdv-product-picker" aria-labelledby="pdvProductPickerTitle">
+            <div class="pdv-picker-head">
+              <div>
+                <strong id="pdvProductPickerTitle">Adicionar itens</strong>
+                <span>Escolha a quantidade e adicione direto pela lista.</span>
+              </div>
+              <label class="pdv-picker-search"><span>Buscar item</span><input id="pdvProductSearch" type="search" placeholder="Nome do item…" autocomplete="off"></label>
+            </div>
+            <div class="pdv-product-list" id="pdvProductList" aria-live="polite"></div>
+          </section>
+          <div class="pdv-legacy-add-controls" hidden aria-hidden="true">
             <select id="pdvProduct" aria-label="Produto"></select>
             <input id="pdvQty" type="number" min="1" value="1" aria-label="Quantidade">
             <button class="primary" id="pdvAddItem" type="button">Adicionar</button>
+          </div>
+          <div class="pdv-complements" id="pdvComplements" hidden></div>
+          <div class="pdv-pricing" aria-label="Ajustes rápidos do pedido">
+            <div class="pdv-adjustment-grid">
+              <label class="pdv-quick-field"><span>Desconto</span><select id="pdvDiscountType" aria-label="Tipo de desconto"><option value="none">Sem desconto</option><option value="fixed">Em R$</option><option value="percent">Em %</option></select><input id="pdvDiscountValue" aria-label="Valor do desconto" type="number" min="0" step="0.01" value="0" placeholder="0,00"></label>
+              <label class="pdv-quick-field"><span>Acréscimo</span><select id="pdvSurchargeType" aria-label="Tipo de acréscimo"><option value="none">Sem acréscimo</option><option value="fixed">Em R$</option><option value="percent">Em %</option></select><input id="pdvSurchargeValue" aria-label="Valor do acréscimo" type="number" min="0" step="0.01" value="0" placeholder="0,00"></label>
+            </div>
+            <div class="pdv-adjustment-actions">
+              <span id="pdvAdjustmentMessage" aria-live="polite">Digite um ajuste e confirme.</span>
+              <button class="primary" id="pdvApplyAdjustments" type="button">Aplicar ajustes</button>
+            </div>
+            <div class="pdv-coupon-row">
+              <label><span>Cupom</span><input id="pdvCouponCode" placeholder="Código do cupom" autocomplete="off"></label>
+              <button class="ghost" id="pdvApplyCoupon" type="button">Validar cupom</button>
+            </div>
+            <p class="pdv-coupon-message" id="pdvCouponMessage" aria-live="polite"></p>
+            <div class="pdv-pricing-summary" id="pdvPricingSummary"></div>
+            <div class="pdv-cash-row">
+              <label id="pdvReceivedWrap" hidden><span>Recebido</span><input id="pdvAmountReceived" type="number" min="0" step="0.01" placeholder="0,00"></label>
+              <div class="pdv-change"><span id="pdvChangeLabel">Troco</span><strong id="pdvChange">R$ 0,00</strong></div>
+            </div>
           </div>
           <label>Observações<textarea id="pdvNotes" rows="3" placeholder="Detalhes do pedido"></textarea></label>
           <button class="primary" type="submit">Criar pedido</button>
         </form>
         <aside class="pdv-cart" id="pdvCart"></aside>
       </div>
+      <div class="pdv-flow-head">
+        <div>
+          <h2>Fluxo de pedidos</h2>
+          <p>Acompanhe cada pedido e avance a operação conforme ele é preparado e entregue.</p>
+        </div>
+        <button class="ghost" id="refreshPdvFlow" type="button">Atualizar fluxo</button>
+      </div>
+      <div class="pdv-flow" id="pdvFlow"></div>
     </section>
 
     <section class="panel" id="kdsPanel">
       <div class="panel-head">
         <div>
           <h1>Cozinha</h1>
-          <p>Fila de produção com leitura rápida para a equipe.</p>
+          <p>Aceite pedidos, marque como prontos e imprima a comanda quando precisar.</p>
         </div>
       </div>
       <div class="kds-grid" id="kdsGrid"></div>
@@ -123,7 +215,7 @@
       </div>
       <div class="cash-control" id="cashControl">
         <form id="cashOpenForm" class="cash-form">
-          <label>Valor de abertura<input id="cashOpening" type="number" min="0" step="0.01" value="0"></label>
+          <p class="cash-form-note">A abertura é opcional e não bloqueia pedidos. Use este controle apenas se precisar registrar movimentos em dinheiro.</p>
           <button class="primary" type="submit">Abrir caixa</button>
         </form>
         <form id="cashEntryForm" class="cash-form" hidden>
@@ -131,6 +223,7 @@
           <label>Descrição<input id="cashEntryDescription" placeholder="Ex.: compra de embalagem"></label>
           <label>Valor<input id="cashEntryValue" type="number" min="0.01" step="0.01" required></label>
           <button class="primary" type="submit">Registrar</button>
+          <label>Valor contado no fechamento<input id="cashCounted" type="number" min="0" step="0.01" value="0"></label>
           <button class="danger" id="closeCash" type="button">Fechar caixa</button>
         </form>
       </div>
@@ -145,7 +238,8 @@
           <p>Crie listas opcionais ou obrigatórias e vincule aos itens do cardápio.</p>
         </div>
         <div class="actions">
-          <input id="complementSearch" placeholder="Buscar complemento">
+          <label class="visually-hidden" for="complementSearch">Buscar complemento</label>
+          <input id="complementSearch" placeholder="Buscar complemento" aria-label="Buscar complemento">
           <button class="primary" id="addComplementGroup">Nova lista</button>
         </div>
       </div>
@@ -156,13 +250,24 @@
       <div class="panel-head">
         <div>
           <h1>Cardápio</h1>
-          <p>Edite produtos, preços, imagens e disponibilidade.</p>
+          <p>Organize grupos, itens, adicionais, disponibilidade e estoque em um só lugar.</p>
         </div>
         <div class="actions">
           <button class="ghost" id="resetMenu">Restaurar original</button>
+          <button class="ghost" id="addMenuGroup">Novo grupo</button>
           <button class="primary" id="addProduct">Novo item</button>
         </div>
       </div>
+      <div class="menu-toolbar" aria-label="Filtros do cardápio">
+        <label><span>Buscar item</span><input id="menuSearch" placeholder="Nome, código ou tag" autocomplete="off"></label>
+        <label><span>Grupo</span><select id="menuGroupFilter"><option value="">Todos os grupos</option></select></label>
+        <label><span>Status</span><select id="menuStatusFilter"><option value="all">Todos</option><option value="active">Publicados</option><option value="inactive">Pausados</option><option value="archived">Arquivados</option></select></label>
+        <label><span>Ordenar</span><select id="menuSort"><option value="group">Ordem do cardápio</option><option value="name">Nome</option><option value="priceAsc">Menor preço</option><option value="priceDesc">Maior preço</option></select></label>
+      </div>
+      <details class="menu-group-manager">
+        <summary>Gerenciar grupos e categorias</summary>
+        <div id="menuGroupEditor"></div>
+      </details>
       <div class="menu-editor" id="menuEditor"></div>
     </section>
 
@@ -170,9 +275,9 @@
       <div class="panel-head">
         <div>
           <h1>Clientes</h1>
-          <p>Histórico de clientes criado automaticamente pelos pedidos.</p>
+          <p>Cadastre e mantenha os contatos para reutilizar rapidamente no PDV.</p>
         </div>
-        <div class="actions"><input id="customerSearch" placeholder="Buscar nome ou celular"><button class="primary" id="addCustomer">Novo cliente</button></div>
+        <div class="actions"><label class="visually-hidden" for="customerSearch">Buscar cliente por nome ou celular</label><input id="customerSearch" placeholder="Buscar nome ou celular" aria-label="Buscar cliente por nome ou celular"><button class="primary" id="addCustomer">Novo cliente</button></div>
       </div>
       <form class="customer-form" id="customerForm" hidden>
         <input id="customerKey" type="hidden">
@@ -182,20 +287,65 @@
         <button class="primary" type="submit">Salvar cliente</button>
         <button class="ghost" id="cancelCustomer" type="button">Cancelar</button>
       </form>
+      <div class="customer-list-head" aria-hidden="true"><span>Cliente</span><span>Telefone / WhatsApp</span><span>Ações</span></div>
       <div class="customer-list" id="customerList"></div>
     </section>
 
     <section class="panel" id="reportsPanel">
       <div class="panel-head">
         <div>
-          <h1>Relatórios</h1>
-          <p>Resumo de vendas e produtos mais vendidos.</p>
+          <span class="section-kicker">Resultado & controle</span>
+          <h1>Financeiro</h1>
+          <p>Veja dia, mês ou ano; os indicadores são recalculados conforme o período escolhido.</p>
         </div>
         <div class="actions report-filters">
+          <div class="finance-presets" aria-label="Período rápido">
+            <button class="ghost" type="button" data-finance-range="today" aria-pressed="false">Hoje</button>
+            <button class="ghost" type="button" data-finance-range="7d" aria-pressed="false">7 dias</button>
+            <button class="ghost" type="button" data-finance-range="month" aria-pressed="false">Este mês</button>
+            <button class="ghost" type="button" data-finance-range="year" aria-pressed="false">Este ano</button>
+            <button class="ghost" type="button" data-finance-range="all" aria-pressed="false">Todo o período</button>
+          </div>
           <label>De <input type="date" id="reportStart"></label>
           <label>Até <input type="date" id="reportEnd"></label>
-          <button class="ghost" id="exportReport">Exportar CSV</button>
+          <label>Cliente<input id="financeCustomerFilter" type="search" placeholder="Nome ou celular" aria-label="Filtrar cliente por nome ou celular"></label>
+          <select id="financeStatusFilter" aria-label="Filtrar pedidos financeiros">
+            <option value="valid" selected>Vendas válidas</option>
+            <option value="all">Todos os pedidos</option>
+            <option value="open">Em andamento</option>
+            <option value="finished">Finalizados</option>
+            <option value="cancelled">Cancelados</option>
+          </select>
+          <select id="financePaymentFilter" aria-label="Filtrar formas de pagamento">
+            <option value="all" selected>Todos os pagamentos</option>
+            <option value="pix">Pix</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="cartão">Cartão</option>
+          </select>
+          <select id="financeSourceFilter" aria-label="Filtrar origem dos pedidos">
+            <option value="all" selected>Todos os canais</option>
+            <option value="pickup">Somente retirada</option>
+            <option value="pdv">Somente PDV</option>
+            <option value="public">Cardápio online</option>
+          </select>
+          <details class="finance-extra-filters">
+            <summary>Mais filtros</summary>
+            <div>
+              <label><input id="financeOnlyDiscount" type="checkbox"> Somente com desconto</label>
+              <label><input id="financeOnlySurcharge" type="checkbox"> Somente com acréscimo</label>
+              <label><input id="financeOnlyPaid" type="checkbox"> Somente com pagamento recebido</label>
+              <label><input id="financeOnlyScheduled" type="checkbox"> Somente agendados</label>
+            </div>
+          </details>
+          <button class="ghost" id="exportReport" type="button">Exportar CSV</button>
         </div>
+      </div>
+      <div class="finance-view-tabs" role="tablist" aria-label="Visões financeiras">
+        <button class="active" role="tab" aria-selected="true" type="button" data-finance-view="overview">Visão geral</button>
+        <button role="tab" aria-selected="false" type="button" data-finance-view="sales">Gráficos</button>
+        <button role="tab" aria-selected="false" type="button" data-finance-view="products">Produtos</button>
+        <button role="tab" aria-selected="false" type="button" data-finance-view="expenses">Compras e despesas</button>
+        <button role="tab" aria-selected="false" type="button" data-finance-view="cash">Fluxo de caixa</button>
       </div>
       <div class="report-grid" id="reports"></div>
     </section>
@@ -208,7 +358,15 @@
         </div>
       </div>
       <form class="marketing-form" id="promoForm">
-        <input id="promoTitle" placeholder="Nome da promoção">
+        <div class="promo-form-grid">
+          <label>Nome da promoção<input id="promoTitle" placeholder="Ex.: Cupom de primeira compra"></label>
+          <label>Código do cupom<input id="promoCode" placeholder="Ex.: TOKYO10" autocapitalize="characters"></label>
+          <label>Tipo de desconto<select id="promoDiscountType"><option value="none">Sem desconto</option><option value="fixed">Valor em R$</option><option value="percent">Percentual</option></select></label>
+          <label>Valor do desconto<input id="promoDiscountValue" type="number" min="0" step="0.01" value="0" placeholder="0,00"></label>
+          <label>Começa em<input id="promoStartsAt" type="date"></label>
+          <label>Termina em<input id="promoEndsAt" type="date"></label>
+        </div>
+        <label class="check-line"><input id="promoActive" type="checkbox" checked> Cupom ativo</label>
         <textarea id="promoText" rows="4" placeholder="Mensagem para enviar aos clientes"></textarea>
         <button class="primary">Salvar promoção</button>
       </form>
@@ -219,28 +377,113 @@
       <div class="panel-head">
         <div>
           <h1>Configurações</h1>
-          <p>Status dos recursos da operação.</p>
+          <p>Centralize WhatsApp, impressão e alertas para operar sem sair do fluxo de pedidos.</p>
         </div>
       </div>
-      <div class="settings-grid">
-        <article><strong>WhatsApp</strong><span>Contato, resumo e aviso de pedido pronto disponíveis no pedido.</span></article>
-        <article><strong>Banco de dados</strong><span id="databaseStatus">Verificando conexão...</span></article>
-        <article><strong>Cardápio</strong><span id="settingsStoreStatus">Verificando status...</span></article>
-        <article>
-          <strong>Impressão de cozinha</strong>
-          <span>Escolha a largura do papel usada nas comandas.</span>
-          <select id="printerWidth" aria-label="Largura da impressora">
-            <option value="80">80 mm</option>
-            <option value="58">58 mm</option>
-          </select>
-        </article>
-      </div>
+      <form class="operation-settings-form" id="operationSettingsForm">
+        <div class="operation-settings-grid">
+          <article class="settings-card">
+            <div class="settings-card-head"><span class="section-kicker">01 · Comunicação</span><h2>WhatsApp</h2><p>Padronize os textos usados para enviar o resumo e avisar quando o pedido estiver pronto.</p></div>
+            <label>WhatsApp de atendimento<input id="settingsWhatsappNumber" inputmode="tel" placeholder="(99) 99999-9999"></label>
+            <label>Mensagem de resumo do pedido<textarea id="settingsWhatsappOrderTemplate" rows="6"></textarea></label>
+            <label>Mensagem de pedido pronto<textarea id="settingsWhatsappReadyTemplate" rows="3"></textarea></label>
+            <p class="settings-help">Variáveis disponíveis: <code>{cliente}</code>, <code>{pedido}</code>, <code>{total}</code>, <code>{resumo}</code> e <code>{loja}</code>. O texto de pedido pronto é usado automaticamente quando o pedido chega em “Prontos”.</p>
+          </article>
+          <article class="settings-card">
+            <div class="settings-card-head"><span class="section-kicker">02 · Produção</span><h2>Impressão</h2><p>Configure o formato da comanda e escolha se novos pedidos devem ser enviados para impressão automaticamente.</p></div>
+            <label>Largura do papel<select id="settingsPrinterWidth"><option value="80">80 mm</option><option value="58">58 mm</option></select></label>
+            <label>Margem interna (mm)<input id="settingsPrinterMargin" type="number" min="0" max="16" step="1" value="3"><small>Comece com 3 mm. Aumente somente se o driver deixar bordas demais.</small></label>
+            <label>Quantidade de cópias<input id="settingsPrintCopies" type="number" min="1" max="3" step="1"></label>
+            <div class="print-layout-options">
+              <span class="settings-label">CONTEÚDO DA COMANDA</span>
+              <label class="settings-check compact"><input id="settingsPrintShowCustomer" type="checkbox"><span>Cliente</span></label>
+              <label class="settings-check compact"><input id="settingsPrintShowPhone" type="checkbox"><span>Telefone / WhatsApp</span></label>
+              <label class="settings-check compact"><input id="settingsPrintShowPayment" type="checkbox"><span>Pagamento e status</span></label>
+              <label class="settings-check compact"><input id="settingsPrintShowItemPrices" type="checkbox"><span>Preços dos itens</span></label>
+              <label class="settings-check compact"><input id="settingsPrintShowNotes" type="checkbox"><span>Observações</span></label>
+              <label class="settings-check compact"><input id="settingsPrintShowTotals" type="checkbox"><span>Total do pedido</span></label>
+            </div>
+            <label class="settings-check"><input id="settingsPrintOnNewOrder" type="checkbox"><span><strong>Imprimir automaticamente novos pedidos</strong><small>Com o Tokyo Print instalado e conectado, a comanda vai direto para a impressora padrão do Windows.</small></span></label>
+            <div class="settings-status" id="settingsPrintStatus">Impressão automática desativada.</div>
+            <button class="ghost" type="button" data-settings-action="test-print">Imprimir teste</button>
+            <div class="agent-connect-box">
+              <strong>Impressora deste notebook</strong>
+              <p class="settings-help">Abra o Tokyo Print e o Admin detectará automaticamente a impressora padrão do Windows.</p>
+              <button class="ghost" type="button" data-settings-action="connect-print-agent">Detectar impressora</button>
+              <div class="settings-status" id="settingsPrintAgentStatus">Impressora local não detectada.</div>
+            </div>
+          </article>
+          <article class="settings-card">
+            <div class="settings-card-head"><span class="section-kicker">03 · Alertas</span><h2>Notificações</h2><p>Receba um aviso no celular ou desktop quando um novo pedido chegar.</p></div>
+            <label class="settings-check"><input id="settingsNotifyNewOrder" type="checkbox"><span><strong>Alertar novos pedidos</strong><small>Ative neste dispositivo para receber Push mesmo com o painel fechado.</small></span></label>
+            <div class="settings-status settings-status-notification" id="settingsNotificationStatus" role="status" aria-live="polite">Verificando permissão deste dispositivo...</div>
+            <button class="ghost" id="enableNotificationsSettings" type="button">Ativar alertas e som neste dispositivo</button>
+          </article>
+          <article class="settings-card schedule-settings-card">
+            <div class="settings-card-head"><span class="section-kicker">04 · Horários</span><h2>Horário de funcionamento</h2><p>Defina quando a loja aceita retirada. O modo automático atualiza o painel e o cardápio pelo horário de Brasília.</p></div>
+            <label class="settings-check"><input id="settingsScheduleEnabled" type="checkbox"><span><strong>Usar horário automático</strong><small>A agenda controla o status normalmente. Fechar continua disponível na operação quando precisar interromper os pedidos.</small></span></label>
+            <div class="schedule-editor" role="group" aria-label="Agenda semanal da loja">
+              <div class="schedule-head"><span>Dia</span><span>Abre</span><span>Fecha</span><span>Ação</span></div>
+              <div class="schedule-row" data-schedule-row="0">
+                <label class="schedule-day" for="scheduleEnabled0"><input id="scheduleEnabled0" type="checkbox" data-schedule-enabled="0"><span>Domingo</span></label>
+                <label class="schedule-time" for="scheduleOpen0"><span class="sr-only">Abertura no domingo</span><input id="scheduleOpen0" type="time" data-schedule-open="0"></label>
+                <label class="schedule-time" for="scheduleClose0"><span class="sr-only">Fechamento no domingo</span><input id="scheduleClose0" type="time" data-schedule-close="0"></label>
+                <button class="schedule-copy" type="button" data-schedule-copy="0" aria-label="Copiar horários de domingo para os outros dias">Copiar para todos</button>
+              </div>
+              <div class="schedule-row" data-schedule-row="1">
+                <label class="schedule-day" for="scheduleEnabled1"><input id="scheduleEnabled1" type="checkbox" data-schedule-enabled="1"><span>Segunda-feira</span></label>
+                <label class="schedule-time" for="scheduleOpen1"><span class="sr-only">Abertura na segunda-feira</span><input id="scheduleOpen1" type="time" data-schedule-open="1"></label>
+                <label class="schedule-time" for="scheduleClose1"><span class="sr-only">Fechamento na segunda-feira</span><input id="scheduleClose1" type="time" data-schedule-close="1"></label>
+                <button class="schedule-copy" type="button" data-schedule-copy="1" aria-label="Copiar horários de segunda-feira para os outros dias">Copiar para todos</button>
+              </div>
+              <div class="schedule-row" data-schedule-row="2">
+                <label class="schedule-day" for="scheduleEnabled2"><input id="scheduleEnabled2" type="checkbox" data-schedule-enabled="2"><span>Terça-feira</span></label>
+                <label class="schedule-time" for="scheduleOpen2"><span class="sr-only">Abertura na terça-feira</span><input id="scheduleOpen2" type="time" data-schedule-open="2"></label>
+                <label class="schedule-time" for="scheduleClose2"><span class="sr-only">Fechamento na terça-feira</span><input id="scheduleClose2" type="time" data-schedule-close="2"></label>
+                <button class="schedule-copy" type="button" data-schedule-copy="2" aria-label="Copiar horários de terça-feira para os outros dias">Copiar para todos</button>
+              </div>
+              <div class="schedule-row" data-schedule-row="3">
+                <label class="schedule-day" for="scheduleEnabled3"><input id="scheduleEnabled3" type="checkbox" data-schedule-enabled="3"><span>Quarta-feira</span></label>
+                <label class="schedule-time" for="scheduleOpen3"><span class="sr-only">Abertura na quarta-feira</span><input id="scheduleOpen3" type="time" data-schedule-open="3"></label>
+                <label class="schedule-time" for="scheduleClose3"><span class="sr-only">Fechamento na quarta-feira</span><input id="scheduleClose3" type="time" data-schedule-close="3"></label>
+                <button class="schedule-copy" type="button" data-schedule-copy="3" aria-label="Copiar horários de quarta-feira para os outros dias">Copiar para todos</button>
+              </div>
+              <div class="schedule-row" data-schedule-row="4">
+                <label class="schedule-day" for="scheduleEnabled4"><input id="scheduleEnabled4" type="checkbox" data-schedule-enabled="4"><span>Quinta-feira</span></label>
+                <label class="schedule-time" for="scheduleOpen4"><span class="sr-only">Abertura na quinta-feira</span><input id="scheduleOpen4" type="time" data-schedule-open="4"></label>
+                <label class="schedule-time" for="scheduleClose4"><span class="sr-only">Fechamento na quinta-feira</span><input id="scheduleClose4" type="time" data-schedule-close="4"></label>
+                <button class="schedule-copy" type="button" data-schedule-copy="4" aria-label="Copiar horários de quinta-feira para os outros dias">Copiar para todos</button>
+              </div>
+              <div class="schedule-row" data-schedule-row="5">
+                <label class="schedule-day" for="scheduleEnabled5"><input id="scheduleEnabled5" type="checkbox" data-schedule-enabled="5"><span>Sexta-feira</span></label>
+                <label class="schedule-time" for="scheduleOpen5"><span class="sr-only">Abertura na sexta-feira</span><input id="scheduleOpen5" type="time" data-schedule-open="5"></label>
+                <label class="schedule-time" for="scheduleClose5"><span class="sr-only">Fechamento na sexta-feira</span><input id="scheduleClose5" type="time" data-schedule-close="5"></label>
+                <button class="schedule-copy" type="button" data-schedule-copy="5" aria-label="Copiar horários de sexta-feira para os outros dias">Copiar para todos</button>
+              </div>
+              <div class="schedule-row" data-schedule-row="6">
+                <label class="schedule-day" for="scheduleEnabled6"><input id="scheduleEnabled6" type="checkbox" data-schedule-enabled="6"><span>Sábado</span></label>
+                <label class="schedule-time" for="scheduleOpen6"><span class="sr-only">Abertura no sábado</span><input id="scheduleOpen6" type="time" data-schedule-open="6"></label>
+                <label class="schedule-time" for="scheduleClose6"><span class="sr-only">Fechamento no sábado</span><input id="scheduleClose6" type="time" data-schedule-close="6"></label>
+                <button class="schedule-copy" type="button" data-schedule-copy="6" aria-label="Copiar horários de sábado para os outros dias">Copiar para todos</button>
+              </div>
+            </div>
+            <div class="settings-status" id="settingsScheduleStatus">Modo manual ativo. A agenda ainda não controla o status.</div>
+          </article>
+          <article class="settings-card settings-status-card">
+            <div class="settings-card-head"><span class="section-kicker">05 · Operação</span><h2>Status do sistema</h2><p>Confira as conexões e o estado atual do cardápio.</p></div>
+            <div class="settings-status-line"><span>Banco de dados</span><strong id="databaseStatus">Verificando conexão...</strong></div>
+            <div class="settings-status-line"><span>Cardápio</span><strong id="settingsStoreStatus">Verificando status...</strong></div>
+          </article>
+        </div>
+        <div class="settings-save-bar"><span>As preferências ficam salvas neste dispositivo e sincronizadas com o painel online.</span><button class="primary" type="submit">Salvar configurações</button></div>
+      </form>
     </section>
   </main>
 
-  <script src="config.js?v=27"></script>
-  <script src="db.js?v=27"></script>
-  <script src="menu-data.js?v=27"></script>
-  <script src="admin.js?v=27"></script>
+  <script src="config.js?v=20260811-push-3"></script>
+  <script src="db.js?v=20260814-payment-guard-1"></script>
+  <script src="menu-data.js?v=28"></script>
+  <script src="schedule.js?v=2"></script>
+    <script src="admin.js?v=20260814-payment-guard-1"></script>
 </body>
 </html>

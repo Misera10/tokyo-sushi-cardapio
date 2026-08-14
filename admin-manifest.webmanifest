@@ -1,0 +1,26 @@
+{
+  "id": "./admin.html",
+  "name": "Tokyo Sushi — Administração",
+  "short_name": "Tokyo Admin",
+  "description": "Painel de operação da Tokyo Sushi.",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f4f2",
+  "theme_color": "#1f2b36",
+  "icons": [
+    {
+      "src": "assets/tokyo-logo-instagram.jpg",
+      "sizes": "150x150",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

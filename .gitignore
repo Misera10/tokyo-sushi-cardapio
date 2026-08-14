@@ -1,0 +1,32 @@
+# Local tooling and generated browser artifacts
+.playwright-cli/
+.wrangler/
+
+# Windows agent build artifacts (regenerate with installer/build-installer.ps1)
+printer-agent/bin/
+printer-agent/obj/
+printer-agent/publish/
+installer/output/
+installer/test-install/
+
+# Supabase local runtime files can contain credentials and machine-specific data
+supabase/.temp/
+supabase/.branches/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Releases and local generated outputs
+/output/
+/test-results/
+/TokyoSushiPrintSetup-*.exe
+
+# Local agent packages and dependency installs
+/.agents/
+**/node_modules/
+**/bin/
+**/obj/
+**/publish/
+*.exe

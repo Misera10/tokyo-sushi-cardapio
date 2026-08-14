@@ -4,67 +4,76 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#12090b">
+  <meta name="description" content="Cardápio digital da Tokyo Sushi. Escolha seus favoritos e envie o pedido para retirada no balcão.">
   <title>Tokyo Sushi</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=27">
+  <link rel="preload" as="image" href="assets/hero/tokyo-izakaya-hero.png" fetchpriority="high">
+  <link rel="stylesheet" href="styles.css?v=20260811-alertas-1">
 </head>
 <body>
+  <div class="feedback-region" id="feedbackRegion" aria-live="polite" aria-atomic="true"></div>
+  <a class="skip-link" href="#main-content">Ir para o cardápio</a>
   <header class="topbar">
+    <div class="hero-status-frame">
+      <div class="topbar-status" id="storeStatusBadge" data-mode="open" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="storeStatus">Aberto</span>
+      </div>
+    </div>
     <div class="brand-hero">
-      <img class="brand-logo" src="assets/tokyo-logo-instagram.jpg" alt="Tokyo Sushi">
-      <p class="eyebrow">Retirada no balcão</p>
-      <h1>Tokyo Sushi</h1>
-      <p class="sub">Monte seu pedido e envie direto pelo WhatsApp.</p>
+      <img class="brand-logo" src="assets/tokyo-logo-instagram.jpg" alt="Logo Tokyo Sushi" width="64" height="64" fetchpriority="high">
+      <div class="brand-copy">
+        <h1>Tokyo <span class="hero-sushi">Sushi</span></h1>
+      </div>
     </div>
     <button class="install" id="installBtn" hidden>Baixar app</button>
   </header>
 
-  <main class="layout">
+  <main class="layout" id="main-content">
     <section class="menu">
-      <div class="store">
+      <div class="menu-intro">
         <div>
-          <img class="store-logo" src="assets/tokyo-logo-instagram.jpg" alt="">
-          <strong id="storeStatus">Retirada no balcão</strong>
-          <span id="storeHours">18:00 às 23:00</span>
-          <span id="storeAddress">Rua Beco do Pereira - Chácara Viana</span>
+          <p class="section-kicker">Escolha com calma</p>
+          <h2>Seu próximo pedido começa aqui.</h2>
         </div>
-        <div class="store-actions">
-          <a id="mapsTop" href="#" target="_blank" rel="noopener">Localização</a>
-          <a id="whatsTop" href="#" target="_blank" rel="noopener">Contato</a>
-          <a id="instagramTop" href="https://www.instagram.com/tokyosushituntum/" target="_blank" rel="noopener">Instagram</a>
-        </div>
+        <p>Encontre seus favoritos, escolha os adicionais e monte uma retirada do seu jeito.</p>
+        <a class="menu-whatsapp" id="whatsappContact" href="#" target="_blank" rel="noopener" aria-label="Chamar a Tokyo Sushi no WhatsApp">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.9 9.9 0 0 0-8.45 15.09L2.4 21.6l4.62-1.16A9.95 9.95 0 1 0 12.04 2Zm0 2a7.95 7.95 0 0 1 6.72 12.2 7.93 7.93 0 0 1-10.93 2.32l-.38-.23-2.24.56.58-2.17-.25-.4A7.95 7.95 0 0 1 12.04 4Zm-3.05 3.7c-.18 0-.46.06-.7.33-.24.26-.92.9-.92 2.2s.94 2.55 1.07 2.73c.13.18 1.82 2.91 4.51 3.96 2.23.88 2.68.7 3.16.66.49-.05 1.57-.64 1.8-1.26.22-.62.22-1.15.15-1.26-.06-.11-.24-.18-.51-.31-.27-.13-1.57-.78-1.82-.87-.24-.09-.42-.13-.6.13-.18.27-.69.87-.85 1.04-.16.18-.31.2-.58.07-.27-.13-1.13-.42-2.15-1.33-.8-.71-1.34-1.59-1.49-1.86-.16-.27-.02-.42.12-.55.12-.12.27-.31.4-.47.13-.16.18-.27.27-.44.09-.18.05-.33-.02-.47-.07-.13-.6-1.45-.82-1.99-.22-.52-.44-.45-.6-.46h-.44Z"/></svg>
+          <span>Chamar no WhatsApp</span>
+        </a>
       </div>
-
-      <div class="quick-info">
-        <span>Pronto em ~25 min</span>
-        <span>Pedido via WhatsApp</span>
-      </div>
-
       <label class="search-box">
         Buscar no cardápio
-        <input id="menuSearch" type="search" autocomplete="off" placeholder="Ex: hot, combo, salmão">
+        <input id="menuSearch" type="search" autocomplete="off" placeholder="Ex.: combo, salmão ou temaki" aria-label="Buscar produtos no cardápio">
       </label>
 
       <nav class="categories" id="categories" aria-label="Categorias do cardápio"></nav>
       <div class="products" id="products"></div>
     </section>
 
-    <aside class="cart">
+    <aside class="cart" id="cartDrawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cartTitle" tabindex="-1">
       <div class="cart-head">
-        <h2>Pedido</h2>
-        <button id="clearCart" class="ghost">Limpar</button>
+        <div>
+          <p class="cart-kicker">Finalização</p>
+          <h2 id="cartTitle">Seu pedido</h2>
+        </div>
+        <div class="cart-actions">
+          <button id="clearCart" class="ghost" type="button">Limpar pedido</button>
+        </div>
       </div>
-      <div id="cartItems" class="cart-items"></div>
+      <div id="cartItems" class="cart-items" aria-live="polite"></div>
 
       <form id="orderForm" class="order-form">
         <label>
           Nome
-          <input id="customerName" autocomplete="name" placeholder="Nome para retirada">
+          <input id="customerName" autocomplete="name">
         </label>
         <label>
           Celular/WhatsApp
-          <input id="customerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(99) 99999-9999">
+          <input id="customerPhone" type="tel" inputmode="tel" autocomplete="tel">
         </label>
+        <p class="memory-note">Nome e celular ficam salvos neste dispositivo para agilizar seu próximo pedido.</p>
         <label>
           Pagamento
           <select id="paymentMethod">
@@ -73,9 +82,16 @@
             <option>Dinheiro</option>
           </select>
         </label>
+        <div id="cashPaymentFields" class="cash-payment" hidden>
+          <label>
+            Troco para (valor recebido)
+            <input id="amountReceived" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Ex.: 50,00">
+          </label>
+          <p id="cashChangeHint" class="cash-change" aria-live="polite">Informe o valor recebido para calcular o troco.</p>
+        </div>
         <label>
           Observações
-          <textarea id="notes" rows="3" placeholder="Ex: sem cream cheese, pouco shoyu"></textarea>
+          <textarea id="notes" rows="3"></textarea>
         </label>
       </form>
 
@@ -83,17 +99,31 @@
         <span>Total</span>
         <strong id="totalValue">R$ 0,00</strong>
       </div>
-      <button id="sendOrder" class="primary">Enviar Pedido</button>
+      <button id="sendOrder" class="primary" type="button">Enviar pedido pelo WhatsApp</button>
       <p class="hint">A loja confirma o recebimento e avisa quando estiver pronto pelo WhatsApp informado.</p>
     </aside>
   </main>
 
-  <button id="mobileCartBar" class="mobile-cart-bar" hidden>
+  <section class="service-note" aria-label="Como funciona a retirada">
+    <div class="service-note-heading">
+      <p class="section-kicker">Retirada no balcão</p>
+      <h2>Escolha agora. Retire quando estiver pronto.</h2>
+      <p>Monte seu pedido, confirme pelo WhatsApp e passe para retirar.</p>
+    </div>
+    <ol class="service-steps">
+      <li><span>01</span><strong>Monte seu pedido</strong><small>Escolha suas peças, combos e adicionais.</small></li>
+      <li><span>02</span><strong>Confirme no WhatsApp</strong><small>Revise os detalhes e envie o pedido.</small></li>
+      <li><span>03</span><strong>Retire no balcão</strong><small>Avisamos quando estiver pronto.</small></li>
+    </ol>
+  </section>
+
+  <button id="cartScrim" class="cart-scrim" type="button" aria-label="Fechar pedido" hidden></button>
+  <button id="mobileCartBar" class="mobile-cart-bar" type="button" aria-label="Abrir seu pedido" aria-controls="cartDrawer" aria-expanded="false" hidden>
     <span id="mobileCartCount">0 itens</span>
     <strong id="mobileCartTotal">R$ 0,00</strong>
   </button>
 
-  <section class="modal" id="complementModal" hidden>
+  <section class="modal" id="complementModal" role="dialog" aria-modal="true" aria-labelledby="modalProductName" hidden>
     <div class="modal-card">
       <button class="modal-close" id="closeComplementModal" type="button" aria-label="Fechar">×</button>
       <div class="modal-product">
@@ -126,9 +156,24 @@
     </article>
   </template>
 
-  <script src="config.js?v=27"></script>
-  <script src="db.js?v=27"></script>
-  <script src="menu-data.js?v=27"></script>
-  <script src="app.js?v=27"></script>
+  <footer class="site-footer" aria-label="Créditos do cardápio">
+    <div class="footer-main">
+      <div class="footer-brand">
+        <img src="assets/tokyo-logo-instagram.jpg" alt="Logo Tokyo Sushi" width="48" height="48" loading="lazy">
+        <div><strong>Tokyo Sushi</strong><span>Cardápio digital · retirada no balcão</span></div>
+      </div>
+      <div class="footer-promise"><span>Seu pedido, do seu jeito.</span><small>Obrigado por escolher a Tokyo.</small></div>
+    </div>
+    <div class="footer-bottom">
+      <span>Cardápio digital desenvolvido por</span>
+      <a href="https://www.estudiofernandes.com.br" target="_blank" rel="noopener">Estudio Fernandes</a>
+    </div>
+  </footer>
+
+  <script src="config.js?v=20260811-push-3"></script>
+  <script src="db.js?v=20260814-payment-guard-1"></script>
+  <script src="menu-data.js?v=28"></script>
+  <script src="schedule.js?v=2"></script>
+  <script src="app.js?v=20260811-push-3"></script>
 </body>
 </html>

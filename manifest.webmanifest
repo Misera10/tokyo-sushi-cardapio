@@ -1,15 +1,24 @@
 {
   "name": "Tokyo Sushi",
   "short_name": "Tokyo",
-  "start_url": "./index.html?v=14",
+  "id": "./index.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "description": "Cardápio digital da Tokyo Sushi.",
   "display": "standalone",
   "background_color": "#f6ecdf",
-  "theme_color": "#12090b",
+  "theme_color": "#101820",
   "icons": [
     {
       "src": "assets/tokyo-logo-instagram.jpg",
       "sizes": "150x150",
       "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]
