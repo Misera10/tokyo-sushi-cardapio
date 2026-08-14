@@ -1,0 +1,91 @@
+Você está no notebook da operação do Tokyo Sushi.
+
+O projeto já foi copiado para este computador. Abra a pasta raiz do projeto como workspace e leia primeiro:
+- AGENTS.md
+- CONTEXT.md
+- docs/agentes/BASE-SPEC-DRIVEN-ESTUDIO-FERNANDES.md
+- specs/CardapioTokyoSushi/
+- harness/
+- .agents/skills/
+
+Contexto do sistema:
+- É um cardápio digital + painel Admin para pedidos de retirada no balcão.
+- O banco é Supabase e usa tabelas com prefixo tks_.
+- O domínio do cardápio é https://tokyosushi.estudiofernandes.com.br.
+- O Admin recebe os pedidos gravados em tks_orders.
+- O agente local de impressão é o Tokyo Print v0.3.18, instalado neste notebook.
+- A versão 0.3.18 foi criada para corrigir o cabeçalho da impressão automática, que ficava cortado/alinhado à direita. O corpo da comanda já estava correto.
+
+Problema atual:
+O Tokyo Print v0.3.18 foi instalado, mas quando um cliente faz um pedido pelo cardápio, o pedido chega ao Admin e não é impresso automaticamente. A impressão de teste precisa ser verificada separadamente. Não altere dados de pedidos, produtos, financeiro ou configurações do Supabase sem evidência e sem explicar antes.
+
+Fluxo esperado:
+1. Cliente monta o pedido no cardápio.
+2. O pedido é criado no Supabase pela função tks_create_order.
+3. O Admin detecta o novo pedido em tks_orders.
+4. Se operation_settings.printOnNewOrder estiver ativo, o Admin chama:
+   POST http://127.0.0.1:4242/v1/print-order
+5. O Tokyo Print recebe o pedido, coloca na fila e envia para a impressora padrão do Windows.
+
+Faça uma auditoria objetiva, nesta ordem:
+
+1. Verifique o processo local:
+```powershell
+Get-Process TokyoSushi.PrintAgent -ErrorAction SilentlyContinue
+```
+
+2. Verifique se o agente responde:
+```powershell
+Invoke-WebRequest http://127.0.0.1:4242/health -UseBasicParsing
+```
+
+3. Verifique a fila sem imprimir nada:
+```powershell
+Invoke-WebRequest http://127.0.0.1:4242/v1/jobs -UseBasicParsing
+```
+
+4. Leia o log do agente, se existir:
+```powershell
+Get-Content "$env:LOCALAPPDATA\TokyoSushi\PrintAgent\agent.log" -Tail 100 -ErrorAction SilentlyContinue
+```
+
+5. Verifique a configuração local do agente sem exibir a ApiKey:
+```powershell
+$path="$env:LOCALAPPDATA\TokyoSushi\PrintAgent\settings.json"
+if(Test-Path $path){
+  $s=Get-Content $path | ConvertFrom-Json
+  $s | Select-Object SelectedPrinter,PaperWidth,PrintMargin,PrintFontSize,StartWithWindows,StartMinimized
+}
+```
+
+6. Verifique se a impressora aparece no Windows:
+```powershell
+Get-Printer | Select-Object Name,Default,PrinterStatus,WorkOffline
+```
+
+7. No código, trace estes pontos sem fazer alteração primeiro:
+- refreshOrders em admin.js
+- operationSettings.printOnNewOrder
+- printOrder em admin.js
+- requestPrintAgent em admin.js
+- mapOrderToPrintRequest em admin.js
+- endpoint /v1/print-order em printer-agent/Services/LocalAgentServer.cs
+- fila em printer-agent/Services/PrintQueueService.cs
+- layout em printer-agent/Services/PrinterService.cs
+
+8. Confirme no navegador do Admin:
+- se a configuração de impressão automática está ativada;
+- se “Detectar impressora” mostra o Tokyo Print conectado;
+- se o console apresenta erro CORS, conexão recusada, 401, 404 ou falha no endpoint;
+- se o domínio usado é exatamente tokyosushi.estudiofernandes.com.br.
+
+Regras:
+- Primeiro reproduza e identifique em qual etapa o fluxo quebra.
+- Não apague pedidos, não resete o banco e não troque credenciais.
+- Não exponha ApiKey, service_role, senhas ou tokens na resposta.
+- Se encontrar uma correção segura, aplique-a, teste e explique os arquivos alterados.
+- Se o problema for apenas configuração ou processo do notebook, corrija a configuração local em vez de alterar o sistema online.
+- Ao final, informe: causa encontrada, evidência, correção feita, testes executados e qualquer pendência.
+
+Comece agora pela auditoria do notebook e não apenas pela leitura do código.
+

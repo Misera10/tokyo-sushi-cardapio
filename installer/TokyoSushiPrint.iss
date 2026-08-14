@@ -1,5 +1,5 @@
 #define MyAppName "Tokyo Print"
-#define MyAppVersion "0.3.17"
+#define MyAppVersion "0.4.1"
 #define MyAppPublisher "Estúdio Fernandes"
 #define MyAppExeName "TokyoSushi.PrintAgent.exe"
 
@@ -9,6 +9,7 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL=https://estudiofernandes.com.br
+AppMutex=Local\TokyoSushi.PrintAgent.SingleInstance
 DefaultDirName={localappdata}\Programs\Tokyo Sushi\Tokyo Print
 DefaultGroupName=Tokyo Sushi
 DisableProgramGroupPage=yes
@@ -23,6 +24,8 @@ WizardStyle=modern
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Uninstallable=yes
 SetupLogging=yes
+CloseApplications=yes
+CloseApplicationsFilter={#MyAppExeName}
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"

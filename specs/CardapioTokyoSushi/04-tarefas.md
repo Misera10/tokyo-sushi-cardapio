@@ -33,6 +33,8 @@
 - [x] Criar o agente Windows próprio de impressão com fila local, descoberta da impressora padrão, impressão de pedido, teste e endpoints locais protegidos.
 - [x] Integrar o Admin ao agente local com pareamento, fallback nativo e reimpressão.
 - [x] Criar instalador Inno Setup autocontido, inicialização com Windows e desinstalação limpa.
+- [x] Limitar a fila local às impressões do dia, com limpeza automática na virada e proteção contra instâncias duplicadas.
+- [x] Reorganizar a interface do Tokyo Print para destacar operação do dia, impressora ativa, falhas e teste rápido.
 - [ ] Validar impressão física no notebook da operação com a impressora instalada como padrão no Windows.
 - [x] Validar horário de funcionamento: domingo a sábado, dia habilitado/desabilitado, abertura, fechamento, janela atravessando meia-noite e bloqueio automático do cardápio fora do horário.
 - [ ] Validar arquivamento de venda pelo Financeiro, confirmação, remoção do relatório e rollback quando o banco falhar.

@@ -10,7 +10,7 @@ namespace TokyoSushi.PrintAgent;
 
 public partial class MainWindow : Window
 {
-    private const string AppVersion = "0.3.17";
+    private const string AppVersion = "0.4.1";
     private readonly AgentSettings _settings;
     private readonly PrinterService _printerService = new();
     private readonly PrintQueueService _queue;
@@ -134,7 +134,7 @@ public partial class MainWindow : Window
                 ResolveMargin(_settings.MarginRight),
                 ResolveMargin(_settings.MarginTop),
                 ResolveMargin(_settings.MarginBottom)));
-            LastTestText.Text = DateTime.Now.ToString("HH:mm");
+            LastTestText.Text = $"Último teste: hoje às {DateTime.Now:HH:mm}";
             TestStatusText.Text = "Comanda enviada. Confira a saída física da impressora.";
         }
         catch (Exception error)
@@ -155,8 +155,19 @@ public partial class MainWindow : Window
 
     private void RefreshJobs()
     {
+        var jobs = _queue.Snapshot();
         _jobRows.Clear();
-        foreach (var job in _queue.Snapshot()) _jobRows.Add(job);
+        foreach (var job in jobs) _jobRows.Add(job);
+
+        var failed = jobs.Count(job => job.Status == "Falhou");
+        TodayJobCountText.Text = jobs.Count.ToString();
+        TodayQueueStatusText.Text = failed == 0
+            ? jobs.Count == 0 ? "Nenhuma impressão feita ainda" : "Todas as impressões de hoje estão normais"
+            : $"{failed} falha{(failed == 1 ? "" : "s")} para revisar";
+        QueueDateText.Text = $"HOJE · {DateTime.Now:dd/MM/yyyy}";
+        QueueSummaryText.Text = jobs.Count == 0
+            ? "Nenhuma impressão registrada hoje. O histórico zera automaticamente à meia-noite."
+            : $"{jobs.Count} {(jobs.Count == 1 ? "impressão registrada" : "impressões registradas")} hoje · histórico local descartado à meia-noite.";
         JobsEmptyText.Visibility = _jobRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 

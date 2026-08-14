@@ -75,7 +75,7 @@ public sealed class LocalAgentServer : IDisposable
         {
             if (context.Request.Url?.AbsolutePath == "/health")
             {
-                await RespondAsync(context, 200, new { ok = true, app = "tokyo-print", version = "0.3.17" });
+                await RespondAsync(context, 200, new { ok = true, app = "tokyo-print", version = "0.4.1" });
                 return;
             }
 

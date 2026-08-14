@@ -2,6 +2,17 @@
 
 Agente Windows da Tokyo Sushi para impressão local de comandas.
 
+## Versão 0.4.1
+
+Cada alteração funcional ou visual deve gerar uma nova versão. A versão atual é registrada
+no aplicativo, no agente local, no projeto e no nome do instalador.
+
+- o histórico local guarda somente as impressões feitas no dia atual;
+- trabalhos de dias anteriores são removidos ao abrir o agente, antes de uma nova ação e automaticamente à meia-noite;
+- a fila mostra o resumo do dia e mantém a reimpressão disponível apenas até a virada;
+- o aplicativo impede duas instâncias simultâneas, evitando conflito na porta local `4242`;
+- a tela foi reorganizada para destacar impressora ativa, quantidade do dia, falhas e teste rápido.
+
 ## O que está funcionando
 
 - interface WPF com a identidade visual do painel;
@@ -45,14 +56,14 @@ dotnet publish TokyoSushi.PrintAgent.csproj `
   --output publish
 ```
 
-A integração do Admin, fila persistente de pedidos, inicialização com o Windows,
+A integração do Admin, fila diária persistente de pedidos, inicialização com o Windows,
 inicialização minimizada e instalador estão incluídos nesta versão. O instalador
-fica em `installer/output/TokyoPrintSetup-v0.3.17.exe` e preserva as configurações e a
-fila em `%LOCALAPPDATA%\\TokyoSushi\\PrintAgent` durante a desinstalação.
+fica em `installer/output/TokyoPrintSetup-v0.4.1.exe` e preserva as configurações e a
+fila do dia em `%LOCALAPPDATA%\\TokyoSushi\\PrintAgent` durante a desinstalação.
 
 ## Uso no notebook da operação
 
-1. Instale o `TokyoPrintSetup.exe` no notebook que possui a impressora instalada no Windows.
+1. Instale o `TokyoPrintSetup-v0.4.1.exe` no notebook que possui a impressora instalada no Windows.
 2. Abra o Tokyo Print, confira a impressora marcada como `Padrão` e faça uma comanda de teste.
 3. No Admin Tokyo Sushi, abra `Configurações > Impressão` e clique em `Detectar impressora`.
 4. Confirme a impressora encontrada, ative a impressão automática e salve as configurações.

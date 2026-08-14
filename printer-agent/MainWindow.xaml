@@ -2,8 +2,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Tokyo Print · Tokyo Sushi"
-        Height="720" Width="1040" MinHeight="560" MinWidth="760"
+        Height="780" Width="1180" MinHeight="640" MinWidth="860"
         WindowStartupLocation="CenterScreen"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanResize"
+        ShowInTaskbar="True"
         Background="{StaticResource PaperBrush}"
         FontFamily="Segoe UI">
     <Grid>
@@ -45,7 +48,7 @@
 
                 <StackPanel Grid.Row="2">
                     <TextBlock Text="Tokyo Sushi" Foreground="White" FontWeight="SemiBold" />
-                    <TextBlock x:Name="VersionText" Text="Tokyo Print v0.3.17 · Windows" Foreground="#78909C" FontSize="11" Margin="0,4,0,0" />
+                    <TextBlock x:Name="VersionText" Text="Tokyo Print v0.3.18 · Windows" Foreground="#78909C" FontSize="11" Margin="0,4,0,0" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -82,9 +85,9 @@
                     </Border>
                     <Border Grid.Column="2" Background="#E7F2EF" BorderBrush="#C7E1DB" BorderThickness="1" CornerRadius="14" Padding="18" Margin="10,0,0,0">
                         <StackPanel>
-                            <TextBlock Text="ÚLTIMO TESTE" Foreground="{StaticResource GreenBrush}" FontSize="10" FontWeight="Bold" />
-                            <TextBlock x:Name="LastTestText" Text="Ainda não testado" FontSize="16" FontWeight="SemiBold" Margin="0,12,0,0" />
-                            <TextBlock Text="pronto para validar" Foreground="{StaticResource GreenBrush}" FontSize="12" Margin="0,5,0,0" />
+                            <TextBlock Text="IMPRESSÕES DE HOJE" Foreground="{StaticResource GreenBrush}" FontSize="10" FontWeight="Bold" />
+                            <TextBlock x:Name="TodayJobCountText" Text="0" FontSize="25" FontWeight="SemiBold" Margin="0,9,0,0" />
+                            <TextBlock x:Name="TodayQueueStatusText" Text="Nenhuma impressão feita ainda" Foreground="{StaticResource GreenBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -122,6 +125,7 @@
                                 <TextBlock Text="TESTE COM AS CONFIGURAÇÕES SALVAS" Foreground="{StaticResource InkMutedBrush}" FontSize="10" FontWeight="Bold" />
                                 <TextBlock Text="Usa papel, fonte e margens definidos em Configurações." Foreground="{StaticResource InkMutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,16" />
                                 <Button x:Name="TestPrintButton" Content="Imprimir comanda de teste" Click="TestPrintButton_Click" Background="{StaticResource GreenBrush}" Foreground="White" HorizontalContentAlignment="Center" Padding="12" />
+                                <TextBlock x:Name="LastTestText" Text="Último teste: ainda não executado" Foreground="{StaticResource GreenBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,12,0,0" />
                                 <TextBlock x:Name="TestStatusText" Text="Selecione uma impressora para começar." Foreground="{StaticResource InkMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,12,0,0" />
                             </StackPanel>
                         </Border>
@@ -132,10 +136,10 @@
                     <StackPanel>
                         <DockPanel LastChildFill="False">
                             <StackPanel DockPanel.Dock="Left">
-                                <TextBlock Text="Fila local" FontSize="19" FontWeight="SemiBold" />
-                                <TextBlock Text="Acompanhe cada comanda e tente novamente quando uma impressora falhar." Foreground="{StaticResource InkMutedBrush}" FontSize="12" Margin="0,5,0,0" />
+                                <TextBlock Text="Impressões de hoje" FontSize="19" FontWeight="SemiBold" />
+                                <TextBlock x:Name="QueueSummaryText" Text="O histórico é zerado automaticamente à meia-noite." Foreground="{StaticResource InkMutedBrush}" FontSize="12" Margin="0,5,0,0" />
                             </StackPanel>
-                            <TextBlock DockPanel.Dock="Right" Text="ÚLTIMOS 30 TRABALHOS" Foreground="{StaticResource GoldBrush}" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" />
+                            <TextBlock x:Name="QueueDateText" DockPanel.Dock="Right" Text="HOJE" Foreground="{StaticResource GoldBrush}" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" />
                         </DockPanel>
                         <DataGrid x:Name="JobsGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column" BorderThickness="0" GridLinesVisibility="None" RowHeight="42" Margin="0,18,0,0">
                             <DataGrid.Columns>
@@ -152,7 +156,7 @@
                                 </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
-                        <TextBlock x:Name="JobsEmptyText" Text="Nenhum trabalho de impressão ainda." Foreground="{StaticResource InkMutedBrush}" Margin="0,18,0,0" />
+                        <TextBlock x:Name="JobsEmptyText" Text="Nenhuma impressão feita hoje." Foreground="{StaticResource InkMutedBrush}" Margin="0,18,0,0" />
                     </StackPanel>
                 </Border>
 

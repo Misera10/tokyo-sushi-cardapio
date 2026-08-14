@@ -26,12 +26,14 @@ public sealed class PrintQueueService : IDisposable
         Jobs = new ReadOnlyObservableCollection<PrintJob>(_jobs);
         Load();
         _ = WorkerAsync(_cancellation.Token);
+        _ = DailyCleanupAsync(_cancellation.Token);
     }
 
     public PrintJob Enqueue(PrintOrderRequest request)
     {
         var printer = _settings.SelectedPrinter;
         if (string.IsNullOrWhiteSpace(printer)) throw new InvalidOperationException("Nenhuma impressora padrão foi encontrada no Windows.");
+        PurgeExpiredJobs();
         var job = new PrintJob
         {
             OrderId = request.OrderId,
@@ -42,7 +44,6 @@ public sealed class PrintQueueService : IDisposable
         lock (_sync)
         {
             _jobs.Insert(0, job);
-            Trim();
             Save();
         }
         RaiseChanged();
@@ -52,11 +53,13 @@ public sealed class PrintQueueService : IDisposable
 
     public IReadOnlyList<PrintJob> Snapshot()
     {
+        PurgeExpiredJobs();
         lock (_sync) return _jobs.ToList();
     }
 
     public bool Retry(string id)
     {
+        PurgeExpiredJobs();
         lock (_sync)
         {
             var job = _jobs.FirstOrDefault(item => item.Id == id);
@@ -78,6 +81,7 @@ public sealed class PrintQueueService : IDisposable
             try
             {
                 await _signal.WaitAsync(cancellationToken);
+                PurgeExpiredJobs();
                 PrintJob? job;
                 lock (_sync) job = _jobs.LastOrDefault(item => item.Status == "Na fila");
                 if (job is null) continue;
@@ -107,11 +111,12 @@ public sealed class PrintQueueService : IDisposable
         {
             if (!File.Exists(_path)) return;
             var jobs = JsonSerializer.Deserialize<List<PrintJob>>(File.ReadAllText(_path)) ?? new();
-            foreach (var job in jobs.Take(30))
+            foreach (var job in jobs.Where(IsFromToday))
             {
                 if (job.Status is "Imprimindo" or "Na fila") job.Status = "Falhou";
                 _jobs.Add(job);
             }
+            Save();
         }
         catch (Exception error) { AgentLog.Write(error); }
     }
@@ -122,9 +127,41 @@ public sealed class PrintQueueService : IDisposable
         File.WriteAllText(_path, JsonSerializer.Serialize(_jobs, new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    private void Trim()
+    private bool PurgeExpiredJobs()
     {
-        while (_jobs.Count > 30) _jobs.RemoveAt(_jobs.Count - 1);
+        var removed = false;
+        lock (_sync)
+        {
+            for (var index = _jobs.Count - 1; index >= 0; index--)
+            {
+                if (IsFromToday(_jobs[index])) continue;
+                _jobs.RemoveAt(index);
+                removed = true;
+            }
+
+            if (removed) Save();
+        }
+
+        if (removed) RaiseChanged();
+        return removed;
+    }
+
+    private static bool IsFromToday(PrintJob job) => job.CreatedAt.Date == DateTime.Today;
+
+    private async Task DailyCleanupAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var untilMidnight = DateTime.Today.AddDays(1) - DateTime.Now;
+            if (untilMidnight <= TimeSpan.Zero) untilMidnight = TimeSpan.FromMinutes(1);
+
+            try
+            {
+                await Task.Delay(untilMidnight, cancellationToken);
+                PurgeExpiredJobs();
+            }
+            catch (OperationCanceledException) { return; }
+        }
     }
 
     private void RaiseChanged() => JobsChanged?.Invoke(this, EventArgs.Empty);
