@@ -31,3 +31,5 @@ supabase/.branches/
 **/obj/
 **/publish/
 *.exe
+
+.vercel
