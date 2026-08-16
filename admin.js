@@ -407,8 +407,11 @@ const STORE_STATUS = {
 
 function normalizeStoreStatus(value) {
   const source = value || {};
-  if (source.mode === "open") return { ...STORE_STATUS.open, manualOverride: source.manualOverride === true };
-  return { ...STORE_STATUS.closed, manualOverride: source.manualOverride !== false };
+  const manualOverrideDate = /^\d{4}-\d{2}-\d{2}$/.test(String(source.manualOverrideDate || ""))
+    ? String(source.manualOverrideDate)
+    : "";
+  if (source.mode === "open") return { ...STORE_STATUS.open, manualOverride: source.manualOverride === true, manualOverrideDate };
+  return { ...STORE_STATUS.closed, manualOverride: source.manualOverride !== false, manualOverrideDate };
 }
 
 const MENU_DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -751,7 +754,8 @@ function renderOperationSettings() {
   if (byId("settingsPrintStatus")) byId("settingsPrintStatus").textContent = operationSettings.printOnNewOrder ? "Impressão automática ativada para novos pedidos." : "Impressão automática desativada.";
   window.syncNotificationButton?.();
   if (byId("settingsScheduleStatus")) {
-    const manualOverride = storeStatus.manualOverride === true || storeStatus.mode === "closed";
+    const manualOverride = storeStatus.manualOverride === true
+      && (effectiveStoreStatus().source === "manual" || !operationSettings.scheduleEnabled);
     byId("settingsScheduleStatus").textContent = manualOverride
       ? "Controle manual ativo. O cardápio fica neste estado até você clicar em Abrir."
       : operationSettings.scheduleEnabled
@@ -3029,8 +3033,8 @@ document.body.addEventListener("click", async event => {
   if (target.dataset.storeMode) {
     const selectedMode = target.dataset.storeMode;
     storeStatus = selectedMode === "open"
-      ? { ...STORE_STATUS.open, manualOverride: false }
-      : { ...STORE_STATUS.closed, manualOverride: true };
+      ? { ...STORE_STATUS.open, manualOverride: false, manualOverrideDate: "" }
+      : { ...STORE_STATUS.closed, manualOverride: true, manualOverrideDate: localDateKey() };
     saveStoreStatus();
     renderStoreControls();
   }

@@ -466,6 +466,7 @@ declare
   status jsonb;
   today jsonb;
   previous jsonb;
+  current_date_key text := to_char(now() at time zone 'America/Sao_Paulo', 'YYYY-MM-DD');
   weekday integer := extract(dow from (now() at time zone 'America/Sao_Paulo'))::integer;
   current_time_value time := (now() at time zone 'America/Sao_Paulo')::time;
   opening time;
@@ -473,8 +474,14 @@ declare
 begin
   select value into schedule from public.tks_settings where key = 'store_schedule';
   select value into status from public.tks_settings where key = 'store_status';
-  if coalesce((status->>'manualOverride')::boolean, (status->>'manual_override')::boolean, false) is true
-    or lower(coalesce(status->>'mode', 'open')) in ('paused', 'closed') then
+  if case
+    when status ? 'manualOverride' then coalesce((status->>'manualOverride')::boolean, false)
+      and (coalesce((schedule->>'enabled')::boolean, false) is not true or status->>'manualOverrideDate' = current_date_key)
+    when status ? 'manual_override' then coalesce((status->>'manual_override')::boolean, false)
+      and (coalesce((schedule->>'enabled')::boolean, false) is not true or status->>'manual_override_date' = current_date_key)
+    else lower(coalesce(status->>'mode', 'open')) in ('paused', 'closed')
+      and coalesce((schedule->>'enabled')::boolean, false) is not true
+  end then
     return lower(coalesce(status->>'mode', 'open')) = 'open';
   end if;
   if coalesce((schedule->>'enabled')::boolean, false) is not true then

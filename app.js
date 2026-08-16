@@ -21,8 +21,11 @@ const CUSTOMER_MEMORY_KEY = "tokyoCustomerMemory";
 const DEFAULT_STORE_STATUS = { mode: "open", label: "Aberto", manualOverride: false };
 function normalizeStoreStatus(value) {
   const source = value || {};
-  if (source.mode === "open") return { ...DEFAULT_STORE_STATUS, manualOverride: source.manualOverride === true };
-  return { mode: "closed", label: "Fechado", manualOverride: source.manualOverride !== false };
+  const manualOverrideDate = /^\d{4}-\d{2}-\d{2}$/.test(String(source.manualOverrideDate || ""))
+    ? String(source.manualOverrideDate)
+    : "";
+  if (source.mode === "open") return { ...DEFAULT_STORE_STATUS, manualOverride: source.manualOverride === true, manualOverrideDate };
+  return { mode: "closed", label: "Fechado", manualOverride: source.manualOverride !== false, manualOverrideDate };
 }
 const DEFAULT_STORE_SCHEDULE = window.TokyoSchedule?.normalize
   ? window.TokyoSchedule.normalize({})

@@ -32,12 +32,19 @@
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/Sao_Paulo",
       weekday: "short",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23"
     }).formatToParts(date).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
     const weekday = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[parts.weekday];
-    return { day: Number.isInteger(weekday) ? weekday : 0, time: `${parts.hour}:${parts.minute}` };
+    return {
+      day: Number.isInteger(weekday) ? weekday : 0,
+      time: `${parts.hour}:${parts.minute}`,
+      dateKey: `${parts.year}-${parts.month}-${parts.day}`
+    };
   }
 
   function toMinutes(time) {
@@ -51,10 +58,13 @@
     const fallback = sourceFallback.mode === "open"
       ? { ...sourceFallback, label: "Aberto" }
       : { ...sourceFallback, mode: "closed", label: "Fechado" };
-    const manualOverride = fallback.manualOverride === true || fallback.mode === "closed";
+    const current = currentParts(date);
+    // O fechamento manual vale somente no dia em que foi acionado.
+    // O modo "closed" também pode ser o resultado calculado da própria agenda.
+    const manualOverride = fallback.manualOverride === true
+      && (!normalized.enabled || fallback.manualOverrideDate === current.dateKey);
     if (manualOverride || !normalized.enabled) return { ...fallback, source: "manual" };
 
-    const current = currentParts(date);
     const today = normalized.weekly[current.day];
     const now = toMinutes(current.time);
     const previous = normalized.weekly[(current.day + 6) % 7];

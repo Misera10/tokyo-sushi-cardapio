@@ -88,8 +88,8 @@ Como operador único da Tokyo Sushi, quero configurar os dias e horários de fun
 - Dado que um dia está desabilitado, quando o modo automático está ativo naquele dia, então a loja aparece fechada para retirada e o cardápio não permite adicionar ou enviar pedido.
 - Dado que o horário atual está dentro da janela configurada, quando consulto o painel ou o cardápio, então a loja aparece aberta para retirada.
 - Dado que o horário atual está fora da janela configurada, quando consulto o painel ou o cardápio, então a loja aparece fechada para retirada e o fluxo público fica bloqueado.
-- Dado que a agenda automática está ativa, quando clico em Pausar ou Fechar na operação, então o status manual sobrescreve a agenda imediatamente e o cardápio para de aceitar pedidos.
-- Dado que existe uma sobreposição manual de Pausar ou Fechar, quando clico em Abrir, então a sobreposição é removida e a agenda automática volta a ser considerada.
+- Dado que a agenda automática está ativa, quando clico em Fechar na operação, então o status manual sobrescreve a agenda imediatamente e o cardápio para de aceitar pedidos até o fim do dia local.
+- Dado que existe uma sobreposição manual de Fechar, quando clico em Abrir, então a sobreposição é removida imediatamente; se eu não clicar, ela expira na virada do dia e a agenda automática volta a ser considerada.
 - Dado que um turno atravessa a meia-noite, quando configuro fechamento menor que abertura, então o sistema considera a janela noturna corretamente.
 - Dado que o modo automático está desligado, quando altero o status manual, então o comportamento atual permanece preservado.
 
