@@ -674,9 +674,22 @@ function saveComplements() {
   localStorage.setItem("tokyoComplements", JSON.stringify(complementGroups));
 }
 
-function saveStoreStatus() {
+async function saveStoreStatus() {
   localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
-  runOnline(() => window.TokyoDb.saveSetting("store_status", storeStatus), "Falha ao salvar status do cardápio online.");
+  if (!window.TokyoDb?.enabled) return true;
+  try {
+    await window.TokyoDb.saveSetting("store_status", storeStatus);
+    const persisted = normalizeStoreStatus(await window.TokyoDb.loadSetting("store_status", null));
+    const isSynced = persisted.mode === storeStatus.mode
+      && persisted.manualOverride === storeStatus.manualOverride
+      && persisted.manualOverrideDate === (storeStatus.manualOverrideDate || "");
+    if (!isSynced) throw new Error("O status retornado pelo banco não corresponde ao estado escolhido.");
+    return true;
+  } catch (error) {
+    notify("O status não foi sincronizado. Verifique sua conexão e tente novamente.");
+    console.warn("Falha ao salvar status do cardápio online.", error);
+    return false;
+  }
 }
 
 function saveCashSession() {
@@ -3032,11 +3045,19 @@ document.body.addEventListener("click", async event => {
   }
   if (target.dataset.storeMode) {
     const selectedMode = target.dataset.storeMode;
+    const previousStatus = storeStatus;
     storeStatus = selectedMode === "open"
       ? { ...STORE_STATUS.open, manualOverride: false, manualOverrideDate: "" }
       : { ...STORE_STATUS.closed, manualOverride: true, manualOverrideDate: localDateKey() };
-    saveStoreStatus();
     renderStoreControls();
+    const saved = await saveStoreStatus();
+    if (!saved) {
+      storeStatus = previousStatus;
+      localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
+      renderStoreControls();
+      return;
+    }
+    notify(`Cardápio ${selectedMode === "open" ? "aberto" : "fechado"} e sincronizado.`, "success");
   }
   if (target.dataset.financeRange) {
     const range = target.dataset.financeRange;

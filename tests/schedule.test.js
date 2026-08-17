@@ -30,5 +30,6 @@ assert.equal(status("2026-08-16T20:00:00.000Z", { mode: "closed", manualOverride
 assert.equal(status("2026-08-17T20:00:00.000Z", { mode: "closed", manualOverride: true, manualOverrideDate: "2026-08-16" }).mode, "closed", "segunda desativada deve continuar fechada");
 assert.equal(status("2026-08-18T20:00:00.000Z", { mode: "closed", manualOverride: true, manualOverrideDate: "2026-08-16" }).mode, "closed", "terça desativada deve continuar fechada");
 assert.equal(status("2026-08-19T20:00:00.000Z", { mode: "closed", manualOverride: true, manualOverrideDate: "2026-08-16" }).mode, "open", "quarta habilitada deve reabrir pela agenda");
+assert.equal(status("2026-08-19T20:00:00.000Z", { mode: "closed", manualOverride: true }).mode, "open", "status legado sem data não pode bloquear a agenda indefinidamente");
 
 console.log("schedule.test.js: OK");

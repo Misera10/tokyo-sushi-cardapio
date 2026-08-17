@@ -916,7 +916,7 @@ async function init() {
   });
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js?v=20260817-optimized-1").catch(() => {});
+    navigator.serviceWorker.register("sw.js?v=20260817-manual-status-1").catch(() => {});
   }
 }
 
