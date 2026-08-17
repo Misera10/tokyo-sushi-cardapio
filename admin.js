@@ -190,7 +190,7 @@ async function showOrderNotification(order) {
 
 function setupAdminPwa() {
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=20260811-push-2")
+    navigator.serviceWorker.register("./sw-v20260817.js")
       .then(registration => { adminPushRegistration = registration; })
       .catch(() => {});
   }
