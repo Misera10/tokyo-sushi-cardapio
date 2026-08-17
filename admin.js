@@ -110,6 +110,18 @@ async function subscribeAdminDeviceToPush() {
   return subscription;
 }
 
+async function ensureAdminPushSubscription() {
+  if (!("Notification" in window) || Notification.permission !== "granted") return false;
+  if (!pushSubscriptionSupported || !operationSettings.notifyNewOrder) return false;
+  try {
+    await subscribeAdminDeviceToPush();
+    return true;
+  } catch (error) {
+    console.warn("Não foi possível restaurar automaticamente a inscrição Push.", error);
+    return false;
+  }
+}
+
 async function disableAdminDevicePush() {
   const registration = await getAdminPushRegistration();
   const subscription = await registration?.pushManager?.getSubscription();
@@ -3644,6 +3656,9 @@ async function unlockAdmin() {
   }
   renderAll();
   await loadOnlineData();
+  await refreshPushSubscriptionState();
+  await ensureAdminPushSubscription();
+  refreshPushSubscriptionState();
   renderAll();
   startOrderRefresh();
   return true;
