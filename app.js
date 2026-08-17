@@ -89,6 +89,20 @@ const safeImageUrl = value => {
     return "";
   }
 };
+const optimizedImageUrl = value => {
+  const imageUrl = safeImageUrl(value);
+  if (!imageUrl) return "";
+  try {
+    const url = new URL(imageUrl, window.location.href);
+    if (/\/assets\/menu\/[^/]+\.jpeg$/i.test(url.pathname)) {
+      url.pathname = url.pathname.replace(/\.jpeg$/i, ".webp");
+      return url.href;
+    }
+  } catch {
+    return imageUrl;
+  }
+  return imageUrl;
+};
 
 function withDefaultComplements(groups = []) {
   const list = Array.isArray(groups) ? [...groups] : [];
@@ -433,6 +447,7 @@ function renderProducts() {
     return;
   }
 
+  let imagePriority = 0;
   cats.forEach(cat => {
     const section = document.createElement("section");
     section.className = "menu-section";
@@ -446,19 +461,24 @@ function renderProducts() {
       const photo = node.querySelector(".photo");
       const imageUrl = safeImageUrl(item.image);
       if (imageUrl) {
-        photo.innerHTML = `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(cleanText(item.name))}" loading="lazy" decoding="async">`;
-        photo.classList.add("real-photo");
+        const webpUrl = optimizedImageUrl(imageUrl);
+        const isPriorityImage = imagePriority < 6;
+        photo.innerHTML = `<picture>${webpUrl !== imageUrl ? `<source srcset="${escapeHtml(webpUrl)}" type="image/webp">` : ""}<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(cleanText(item.name))}" width="800" height="436" loading="${isPriorityImage ? "eager" : "lazy"}" fetchpriority="${isPriorityImage ? "high" : "low"}" decoding="async"></picture>`;
+        photo.classList.add("real-photo", "is-loading");
         const image = photo.querySelector("img");
         const applyImageFallback = () => {
           if (!image?.isConnected) return;
-          image.remove();
+          image.closest("picture")?.remove();
           photo.classList.remove("real-photo");
+          photo.classList.remove("is-loading");
           photo.classList.add("image-fallback");
         };
+        image?.addEventListener("load", () => photo.classList.remove("is-loading"), { once: true });
         image?.addEventListener("error", applyImageFallback, { once: true });
         window.setTimeout(() => {
           if (image?.isConnected && image.complete && !image.naturalWidth) applyImageFallback();
         }, 2500);
+        imagePriority += 1;
       }
       const labels = [cleanText(item.cat)];
       if (item.badges?.promotion) labels.push("Promoção");
@@ -896,7 +916,7 @@ async function init() {
   });
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js?v=20260811-push-2").catch(() => {});
+    navigator.serviceWorker.register("sw.js?v=20260817-optimized-1").catch(() => {});
   }
 }
 

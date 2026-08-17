@@ -93,7 +93,7 @@ h1, h2, h3 {
   color: white;
   background:
     linear-gradient(90deg, rgba(7, 4, 5, .94) 0%, rgba(26, 5, 7, .76) 58%, rgba(26, 5, 7, .48) 100%),
-url("assets/hero/tokyo-izakaya-hero.png");
+image-set(url("assets/hero/tokyo-izakaya-hero.webp") type("image/webp"), url("assets/hero/tokyo-izakaya-hero.png") type("image/png"));
   background-position: center;
   background-size: cover;
 }
@@ -347,6 +347,8 @@ textarea { min-height: 90px; }
   background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.12));
   pointer-events: none;
 }
+.photo > picture,
+.photo > picture > img,
 .photo > img { display: block; width: 100%; height: 100%; min-height: 122px; object-fit: cover; }
 .product:hover .photo { transform: scale(1.045); filter: saturate(1.08); }
 .product-body {
@@ -818,7 +820,7 @@ body.cart-open .mobile-cart-bar {
     padding: 30px 28px;
     background:
       linear-gradient(90deg, rgba(7, 4, 5, .94) 0%, rgba(26, 5, 7, .72) 54%, rgba(26, 5, 7, .36) 100%),
-url("assets/hero/tokyo-izakaya-hero.png");
+image-set(url("assets/hero/tokyo-izakaya-hero.webp") type("image/webp"), url("assets/hero/tokyo-izakaya-hero.png") type("image/png"));
     background-position: center;
     background-size: cover;
   }
@@ -973,7 +975,7 @@ h1, h2, h3 { font-family: inherit; }
   padding: 18px 18px 28px;
   background:
     linear-gradient(102deg, rgba(11, 19, 25, .97) 0%, rgba(20, 33, 40, .86) 55%, rgba(20, 33, 40, .52) 100%),
-    url("assets/hero/tokyo-izakaya-hero.png") center / cover;
+    image-set(url("assets/hero/tokyo-izakaya-hero.webp") type("image/webp"), url("assets/hero/tokyo-izakaya-hero.png") type("image/png")) center / cover;
 }
 
 .brand-hero {
@@ -1121,6 +1123,16 @@ h1, h2, h3 { font-family: inherit; }
 }
 .photo { background-color: #f0e7dc; }
 .photo.real-photo { background: #f0e7dc; }
+.photo.is-loading {
+  background: linear-gradient(110deg, #eee6dc 8%, #f8f3ed 18%, #eee6dc 33%);
+  background-size: 200% 100%;
+  animation: photo-loading 1.2s linear infinite;
+}
+.photo.is-loading > picture { opacity: 0; }
+@keyframes photo-loading { to { background-position-x: -200%; } }
+@media (prefers-reduced-motion: reduce) {
+  .photo.is-loading { animation: none; }
+}
 .photo.image-fallback {
   background:
     radial-gradient(circle at 32% 34%, rgba(255, 255, 255, .9) 0 20px, transparent 21px),
@@ -1202,7 +1214,7 @@ h1, h2, h3 { font-family: inherit; }
   .menu-section { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .menu-section h2 { grid-column: 1 / -1; }
   .product { grid-template-columns: 1fr; }
-  .photo, .photo > img { min-height: 160px; }
+  .photo, .photo > picture, .photo > img { min-height: 160px; }
   .product h3 { font-size: 18px; }
   .desc { display: -webkit-box; font-size: 13px; }
 }
@@ -1240,7 +1252,7 @@ h1, h2, h3 { font-family: inherit; }
   .layout { width: calc(100% - 16px); }
   .menu { padding: 13px; border-radius: 19px; }
   .product { grid-template-columns: 92px minmax(0, 1fr); }
-  .photo, .photo > img { min-height: 122px; }
+  .photo, .photo > picture, .photo > img { min-height: 122px; }
   .product-body { min-width: 0; overflow: hidden; padding: 11px; }
   .product-bottom { min-width: 0; flex-wrap: wrap; }
   .add { max-width: 100%; padding-inline: 10px; white-space: nowrap; }
@@ -1253,7 +1265,7 @@ h1, h2, h3 { font-family: inherit; }
   overflow: hidden;
   background:
     linear-gradient(110deg, rgba(8, 15, 20, .98) 0%, rgba(17, 31, 39, .90) 45%, rgba(42, 14, 20, .45) 100%),
-    url("assets/hero/tokyo-izakaya-hero.png") center / cover;
+    image-set(url("assets/hero/tokyo-izakaya-hero.webp") type("image/webp"), url("assets/hero/tokyo-izakaya-hero.png") type("image/png")) center / cover;
 }
 .topbar::before {
   position: absolute;

@@ -1,7 +1,7 @@
-const CACHE_NAME = "tokyo-sushi-v20260816-schedule-override-1";
+const CACHE_NAME = "tokyo-sushi-v20260817-optimized-1";
 const ASSETS = [
-  "./", "./index.html", "./admin.html", "./styles.css", "./admin.css", "./config.js", "./db.js", "./menu-data.js", "./schedule.js", "./app.js", "./admin.js", "./manifest.webmanifest", "./admin-manifest.webmanifest", "./icon.svg", "./assets/tokyo-logo-instagram.jpg", "./assets/hero/tokyo-izakaya-hero.png", "./assets/hero/tokyo-kanban-v2.webp",
-  "./assets/menu/5141360.jpeg", "./assets/menu/5141386.jpeg", "./assets/menu/5141416.jpeg", "./assets/menu/5141422.jpeg", "./assets/menu/5141472.jpeg", "./assets/menu/5141527.jpeg", "./assets/menu/5141541.jpeg", "./assets/menu/5141662.jpeg", "./assets/menu/5141673.jpeg", "./assets/menu/5141714.jpeg", "./assets/menu/5141758.jpeg", "./assets/menu/5142965.jpeg", "./assets/menu/5142974.jpeg", "./assets/menu/5142983.jpeg", "./assets/menu/5142990.jpeg", "./assets/menu/5142995.jpeg", "./assets/menu/5142999.jpeg", "./assets/menu/5143005.jpeg", "./assets/menu/5143032.jpeg", "./assets/menu/5143036.jpeg", "./assets/menu/5143058.jpeg", "./assets/menu/5143064.jpeg", "./assets/menu/5143092.jpeg", "./assets/menu/5143093.jpeg", "./assets/menu/5143124.jpeg", "./assets/menu/5143126.jpeg", "./assets/menu/5143148.jpeg", "./assets/menu/5143153.jpeg", "./assets/menu/5143158.jpeg", "./assets/menu/5143162.jpeg", "./assets/menu/5143164.jpeg", "./assets/menu/5150663.jpeg", "./assets/menu/5150695.jpeg", "./assets/menu/5154590.jpeg", "./assets/menu/5160817.jpeg"
+  "./", "./index.html", "./admin.html", "./styles.css", "./admin.css", "./config.js", "./db.js", "./menu-data.js", "./schedule.js", "./app.js", "./admin.js", "./manifest.webmanifest", "./admin-manifest.webmanifest", "./icon.svg", "./assets/tokyo-logo-instagram.jpg", "./assets/hero/tokyo-izakaya-hero.webp", "./assets/hero/tokyo-kanban-v2.webp",
+  "./assets/menu/5141360.webp", "./assets/menu/5141386.webp", "./assets/menu/5141416.webp", "./assets/menu/5141422.webp", "./assets/menu/5141472.webp", "./assets/menu/5141527.webp", "./assets/menu/5141541.webp", "./assets/menu/5141662.webp", "./assets/menu/5141673.webp", "./assets/menu/5141714.webp", "./assets/menu/5141758.webp", "./assets/menu/5142965.webp", "./assets/menu/5142974.webp", "./assets/menu/5142983.webp", "./assets/menu/5142990.webp", "./assets/menu/5142995.webp", "./assets/menu/5142999.webp", "./assets/menu/5143005.webp", "./assets/menu/5143032.webp", "./assets/menu/5143036.webp", "./assets/menu/5143058.webp", "./assets/menu/5143064.webp", "./assets/menu/5143092.webp", "./assets/menu/5143093.webp", "./assets/menu/5143124.webp", "./assets/menu/5143126.webp", "./assets/menu/5143148.webp", "./assets/menu/5143153.webp", "./assets/menu/5143158.webp", "./assets/menu/5143162.webp", "./assets/menu/5143164.webp", "./assets/menu/5150663.webp", "./assets/menu/5150695.webp", "./assets/menu/5154590.webp", "./assets/menu/5160817.webp"
 ];
 
 self.addEventListener("install", event => {
@@ -24,11 +24,16 @@ self.addEventListener("fetch", event => {
   }
 
   if (event.request.destination === "image") {
-    event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+    event.respondWith(caches.match(event.request).then(async cached => {
+      if (cached) return cached;
+      const response = await fetch(event.request);
+      const type = response.headers.get("content-type") || "";
+      if (response.ok && type.startsWith("image/")) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+      }
       return response;
-    })));
+    }));
     return;
   }
 
