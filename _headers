@@ -1,16 +1,25 @@
-/sw.js
-  Cache-Control: no-cache, no-store, must-revalidate
-  Service-Worker-Allowed: /
-
-/sw-v20260817.js
-  Cache-Control: no-cache, no-store, must-revalidate
-  Service-Worker-Allowed: /
+/*
+  Access-Control-Allow-Origin: *
 
 /index.html
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /admin.html
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/*.css
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/*.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/sw*.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
 
 /assets/*
   Cache-Control: public, max-age=86400
+

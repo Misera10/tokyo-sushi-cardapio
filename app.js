@@ -1065,7 +1065,16 @@ async function init() {
   });
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw-v20260817.js").catch(() => {});
+    navigator.serviceWorker.register("sw-v20260908.js").then(reg => {
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  }
+  if ("caches" in window) {
+    caches.keys().then(keys => {
+      keys.forEach(k => {
+        if (k !== "tokyo-sushi-v20260908-pix-v2") caches.delete(k);
+      });
+    }).catch(() => {});
   }
 }
 

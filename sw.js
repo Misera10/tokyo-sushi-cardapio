@@ -1,4 +1,4 @@
-const CACHE_NAME = "tokyo-sushi-v20260817-manual-status-1";
+const CACHE_NAME = "tokyo-sushi-v20260908-pix-v2";
 const ASSETS = [
   "./", "./index.html", "./admin.html", "./styles.css", "./admin.css", "./config.js", "./db.js", "./menu-data.js", "./schedule.js", "./app.js", "./admin.js", "./manifest.webmanifest", "./admin-manifest.webmanifest", "./icon.svg", "./assets/tokyo-logo-instagram.jpg", "./assets/hero/tokyo-izakaya-hero.webp", "./assets/hero/tokyo-kanban-v2.webp",
   "./assets/menu/5141360.webp", "./assets/menu/5141386.webp", "./assets/menu/5141416.webp", "./assets/menu/5141422.webp", "./assets/menu/5141472.webp", "./assets/menu/5141527.webp", "./assets/menu/5141541.webp", "./assets/menu/5141662.webp", "./assets/menu/5141673.webp", "./assets/menu/5141714.webp", "./assets/menu/5141758.webp", "./assets/menu/5142965.webp", "./assets/menu/5142974.webp", "./assets/menu/5142983.webp", "./assets/menu/5142990.webp", "./assets/menu/5142995.webp", "./assets/menu/5142999.webp", "./assets/menu/5143005.webp", "./assets/menu/5143032.webp", "./assets/menu/5143036.webp", "./assets/menu/5143058.webp", "./assets/menu/5143064.webp", "./assets/menu/5143092.webp", "./assets/menu/5143093.webp", "./assets/menu/5143124.webp", "./assets/menu/5143126.webp", "./assets/menu/5143148.webp", "./assets/menu/5143153.webp", "./assets/menu/5143158.webp", "./assets/menu/5143162.webp", "./assets/menu/5143164.webp", "./assets/menu/5150663.webp", "./assets/menu/5150695.webp", "./assets/menu/5154590.webp", "./assets/menu/5160817.webp"
@@ -20,6 +20,19 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   if (event.request.mode === "navigate") {
     event.respondWith(fetch(event.request).catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html"))));
+    return;
+  }
+
+  if (event.request.destination === "style" || event.request.destination === "script") {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
     return;
   }
 
