@@ -35,3 +35,4 @@ supabase/.branches/
 .vercel
 .codegraph/
 .playwright-mcp/
+dist/
