@@ -219,42 +219,94 @@ function renderPixPayment() {
   }
 }
 
-async function copyPixKey() {
-  const key = storePix || "tokiosushituntum@gmail.com";
-  const btn = byId("copyPixBtn");
-  const btnText = byId("copyPixBtnText");
-  let copied = false;
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(key);
-      copied = true;
-    } else {
-      const tempInput = document.createElement("textarea");
-      tempInput.value = key;
-      tempInput.setAttribute("readonly", "");
-      tempInput.style.position = "absolute";
-      tempInput.style.left = "-9999px";
-      document.body.appendChild(tempInput);
-      tempInput.select();
-      copied = document.execCommand("copy");
-      document.body.removeChild(tempInput);
+async function copyTextToClipboard(text) {
+  let ok = false;
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch (e) {
+      console.warn("navigator.clipboard.writeText threw, attempting fallback:", e);
     }
-  } catch {
-    copied = false;
   }
 
-  if (copied) {
-    if (btn && btnText) {
-      btn.classList.add("copied");
-      btnText.textContent = "Copiado! ✓";
-      setTimeout(() => {
-        btn.classList.remove("copied");
-        btnText.textContent = "Copiar chave";
-      }, 3000);
+  if (!ok) {
+    try {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.setAttribute("readonly", "");
+      el.contentEditable = "true";
+      el.style.contain = "strict";
+      el.style.position = "fixed";
+      el.style.top = "0";
+      el.style.left = "-9999px";
+      el.style.fontSize = "16px";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+
+      const sel = window.getSelection();
+      const previousRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+
+      el.focus({ preventScroll: true });
+      el.select();
+      el.setSelectionRange(0, 999999);
+
+      ok = document.execCommand("copy");
+      document.body.removeChild(el);
+
+      if (previousRange && sel) {
+        sel.removeAllRanges();
+        sel.addRange(previousRange);
+      }
+    } catch (err) {
+      console.warn("document.execCommand fallback failed:", err);
+      ok = false;
     }
-    showFeedback("Chave Pix copiada com sucesso!", "success");
+  }
+
+  return ok;
+}
+
+let copyPixResetTimer = null;
+
+async function copyPixKey() {
+  const keyEl = byId("pixKeyValue");
+  const key = (keyEl?.textContent || storePix || "tokiosushituntum@gmail.com").trim();
+  const btn = byId("copyPixBtn");
+  const btnText = byId("copyPixBtnText");
+  const card = byId("pixPaymentFields");
+  const banner = byId("pixFeedbackBanner");
+
+  if ("vibrate" in navigator) {
+    try { navigator.vibrate([35, 25, 35]); } catch {}
+  }
+
+  const copied = await copyTextToClipboard(key);
+
+  if (copied) {
+    if (btn) btn.classList.add("is-copied");
+    if (btnText) btnText.textContent = "Chave copiada! ✓";
+    if (card) card.classList.add("is-copied");
+    if (banner) banner.hidden = false;
+
+    showFeedback("Chave Pix copiada com sucesso! Cole no app do seu banco.", "success");
+
+    if (copyPixResetTimer) clearTimeout(copyPixResetTimer);
+    copyPixResetTimer = setTimeout(() => {
+      if (btn) btn.classList.remove("is-copied");
+      if (btnText) btnText.textContent = "Copiar chave";
+      if (card) card.classList.remove("is-copied");
+      if (banner) banner.hidden = true;
+    }, 4500);
   } else {
-    showFeedback(`Chave Pix: ${key}`, "info");
+    if (keyEl) {
+      const range = document.createRange();
+      range.selectNodeContents(keyEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    showFeedback(`Chave Pix: ${key} (selecionada para copiar)`, "info");
   }
 }
 
@@ -930,6 +982,10 @@ async function init() {
   });
   byId("amountReceived")?.addEventListener("input", () => renderCart());
   byId("copyPixBtn")?.addEventListener("click", copyPixKey);
+  byId("pixKeyBox")?.addEventListener("click", event => {
+    if (event.target.closest("#copyPixBtn")) return;
+    copyPixKey();
+  });
 
   byId("categories").addEventListener("click", event => {
     const button = event.target.closest("button[data-cat]");

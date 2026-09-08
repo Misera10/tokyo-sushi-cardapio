@@ -17,7 +17,7 @@
 html { scroll-behavior: smooth; }
 .feedback-region {
   position: fixed;
-  z-index: 30;
+  z-index: 99999;
   top: 18px;
   right: 18px;
   width: min(360px, calc(100vw - 36px));
@@ -587,97 +587,280 @@ textarea { min-height: 90px; }
   font-size: 10px;
   line-height: 1.35;
 }
+/* ─── Cartão Pix Premium Tokyo Sushi (Design & Micro-interações) ─── */
+.pix-card,
 .pix-payment {
   display: grid;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid #bfe3d5;
-  border-radius: 12px;
-  background: #f0faf5;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-radius: 16px;
+  background: linear-gradient(150deg, #161c1b 0%, #0d1413 100%);
+  border: 1px solid rgba(0, 189, 174, 0.28);
+  box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.24s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.24s cubic-bezier(0.23, 1, 0.32, 1);
 }
-.pix-payment[hidden] { display: none; }
-.pix-payment-head {
+.pix-card[hidden],
+.pix-payment[hidden] {
+  display: none !important;
+}
+.pix-card.is-copied {
+  border-color: rgba(52, 211, 153, 0.7);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25), 0 12px 30px -4px rgba(0, 0, 0, 0.45);
+}
+.pix-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
-.pix-payment-title {
+.pix-badge-group {
   display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pix-brand-tag {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 11px;
   font-weight: 800;
-  color: var(--green-dark);
-}
-.pix-payment-badge {
-  font-size: 10px;
-  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #5eead4;
   text-transform: uppercase;
-  letter-spacing: .04em;
-  background: #d8f1e5;
-  color: var(--green-dark);
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid #bfe3d5;
 }
-.pix-key-box {
+.pix-diamond-icon {
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 6px rgba(0, 189, 174, 0.45));
+}
+.pix-type-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(0, 189, 174, 0.14);
+  color: #2dd4bf;
+  border: 1px solid rgba(0, 189, 174, 0.3);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.pix-instant-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+.pix-key-wrapper {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: 8px;
-  background: #ffffff;
-  border: 1px solid #bfe3d5;
-  border-radius: 8px;
-  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px dashed rgba(0, 189, 174, 0.35);
+  border-radius: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
 }
-.pix-key-value {
-  font-family: inherit;
-  font-size: 11px;
+.pix-key-wrapper:hover {
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(0, 189, 174, 0.65);
+}
+.pix-key-wrapper:active {
+  transform: scale(0.99);
+}
+.pix-key-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.pix-key-label {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+.pix-key-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--ink);
+  color: #f8fafc;
   word-break: break-all;
   user-select: all;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
-.pix-copy-btn {
+.pix-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: var(--green);
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #0d9488 0%, #059669 100%);
   color: #ffffff;
   border: none;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 11px;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 11.5px;
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
-  transition: background .15s ease, transform .1s ease;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.32);
+  transition: transform 0.14s ease-out, background 0.2s ease, box-shadow 0.2s ease;
 }
-.pix-copy-btn:hover {
-  background: var(--green-dark);
+.pix-action-btn:hover {
+  background: linear-gradient(135deg, #0f766e 0%, #047857 100%);
+  box-shadow: 0 6px 14px rgba(13, 148, 136, 0.42);
 }
-.pix-copy-btn:active {
+.pix-action-btn:active {
   transform: scale(0.97);
 }
-.pix-copy-btn.copied {
-  background: #054832;
+.pix-action-btn.is-copied {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
 }
-.pix-beneficiary-info {
+.pix-btn-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pix-icon-copy {
+  display: block;
+}
+.pix-icon-check {
+  display: none;
+}
+.pix-action-btn.is-copied .pix-icon-copy {
+  display: none;
+}
+.pix-action-btn.is-copied .pix-icon-check {
+  display: block;
+  animation: checkPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+@keyframes checkPop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Banner Inline de Confirmação */
+.pix-feedback-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  border-radius: 10px;
+  animation: pixBannerEnter 0.22s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.pix-feedback-banner[hidden] {
+  display: none !important;
+}
+@keyframes pixBannerEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.pix-banner-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #059669;
+  color: #ffffff;
+}
+.pix-banner-content {
+  display: grid;
+  gap: 1px;
+}
+.pix-banner-content strong {
   font-size: 11px;
-  color: var(--ink);
-  line-height: 1.35;
-}
-.pix-beneficiary-info strong {
-  color: var(--green-dark);
   font-weight: 800;
+  color: #34d399;
 }
+.pix-banner-content span {
+  font-size: 10px;
+  color: #d1fae5;
+  line-height: 1.3;
+}
+
+/* Detalhes do Beneficiário */
+.pix-details-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 0;
+}
+.pix-beneficiary-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pix-beneficiary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  flex-shrink: 0;
+}
+.pix-beneficiary-meta {
+  display: grid;
+  gap: 1px;
+}
+.pix-beneficiary-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pix-beneficiary-name {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: 0.01em;
+}
+
 .pix-payment-note {
   margin: 0;
-  font-size: 10px;
+  font-size: 9.5px;
   line-height: 1.35;
-  color: var(--muted);
+  color: #94a3b8;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 8px;
+}
+
+/* Otimização Mobile */
+@media (max-width: 480px) {
+  .pix-card, .pix-payment {
+    padding: 12px 11px 10px;
+  }
+  .pix-key-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .pix-action-btn {
+    width: 100%;
+    height: 38px;
+    font-size: 12px;
+  }
 }
 .cash-payment {
   display: grid;

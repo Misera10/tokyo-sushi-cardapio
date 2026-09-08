@@ -6,7 +6,31 @@ O formato baseia-se em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0
 
 ---
 
-## [2026-09-08] — Integração e Cópia da Chave Pix nos Pedidos (WhatsApp e Cardápio)
+## [2026-09-08] — Redesign Estético do Cartão Pix & Correção de Cópia Multi-Camada
+
+### ✨ Melhorias de UX & Design (Skills `emil-design-eng`, `frontend-design`, `impeccable`)
+
+#### 1. Redesign Estético de Alto Padrão do Cartão Pix
+- **Problema**: O bloco Pix anterior possuía visual de formulário básico verde-claro genérico, com layout apertado e sem feedback visual perceptível em alguns dispositivos móveis.
+- **Solução Visual**:
+  - Transformado em cartão fintech/izakaya de luxo (`.pix-card`), com fundo escuro em degradê obsidiana/jade (`#161c1b` a `#0d1413`), bordas sutis em verde esmeralda translúcido e o logo vetorial oficial do Pix em teal (`#00BDAE`).
+  - Badge de "Chave E-mail" e selo "Aprovação Imediata".
+  - Chave Pix destacada em tipografia monospace limpa e de alto contraste em container tracejado com resposta a toque.
+  - Botão de ação full-width no mobile (`.pix-action-btn`) com gradiente esmeralda, micro-interação no clique (`scale(0.97)`) e transição de ícone suave para checkmark de sucesso.
+  - Selo de segurança com ícone de escudo e verificação destacando o titular **Fabiano R Fernandes**.
+
+#### 2. Cópia Infalível & Feedback Multi-Camadas
+- **Problema**: Em alguns navegadores mobile (iOS Safari / WebViews), o método `navigator.clipboard.writeText` pode falhar por restrição de contexto ou foco, sem disparar o fallback. Além disso, o toast global (`.feedback-region`) estava com `z-index: 30`, ficando oculto atrás da gaveta do pedido (`.cart`, `z-index: 60`).
+- **Soluções Implementadas**:
+  - **Fallback Robusto**: Implementada função `copyTextToClipboard` com `navigator.clipboard.writeText` prioritário e fallback síncrono com `document.execCommand('copy')` em `textarea` temporário estilizado para contornar restrições do iOS Safari (`setSelectionRange`, `contentEditable`).
+  - **Banner de Confirmação Inline**: Criado o elemento `#pixFeedbackBanner` dentro do próprio cartão Pix, que desliza suavemente (`cubic-bezier(0.23, 1, 0.32, 1)`) exibindo checkmark verde e a mensagem *"Chave Pix copiada com sucesso! Abra seu app do banco e cole na opção 'Transferir via Pix'"*.
+  - **Toque no Box Inteiro**: O usuário pode clicar tanto no botão quanto em qualquer área do container da chave (`#pixKeyBox`) para copiar imediatamente.
+  - **Haptics Nativo**: Disparo de vibração sutil (`navigator.vibrate([35, 25, 35])`) em smartphones compatíveis para confirmação tátil do toque.
+  - **Ajuste de Z-Index**: `z-index` de `.feedback-region` elevado de 30 para `99999`, garantindo que toasts globais flutuem acima de qualquer modal ou gaveta aberta.
+- **Arquivos**: [`index.html`](file:///f:/EstudioFernandes/Projetos/CardapioTokyoSushi/index.html), [`styles.css`](file:///f:/EstudioFernandes/Projetos/CardapioTokyoSushi/styles.css), [`app.js`](file:///f:/EstudioFernandes/Projetos/CardapioTokyoSushi/app.js).
+
+---
+
 
 ### ✨ Adicionado & Melhorado
 
