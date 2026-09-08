@@ -27,6 +27,7 @@ O formato baseia-se em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0
   - **Toque no Box Inteiro**: O usuário pode clicar tanto no botão quanto em qualquer área do container da chave (`#pixKeyBox`) para copiar imediatamente.
   - **Haptics Nativo**: Disparo de vibração sutil (`navigator.vibrate([35, 25, 35])`) em smartphones compatíveis para confirmação tátil do toque.
   - **Ajuste de Z-Index**: `z-index` de `.feedback-region` elevado de 30 para `99999`, garantindo que toasts globais flutuem acima de qualquer modal ou gaveta aberta.
+  - **Duração Ágil (2.0s) & Toque para Fechar**: Reduzido o tempo de permanência da mensagem e do estado copiado de 4.5s/5.2s para 2.0s com fade-out suave (`.animate-out`), além de permitir toque em qualquer lugar do banner para fechamento instantâneo.
 - **Arquivos**: [`index.html`](file:///f:/EstudioFernandes/Projetos/CardapioTokyoSushi/index.html), [`styles.css`](file:///f:/EstudioFernandes/Projetos/CardapioTokyoSushi/styles.css), [`app.js`](file:///f:/EstudioFernandes/Projetos/CardapioTokyoSushi/app.js).
 
 ---

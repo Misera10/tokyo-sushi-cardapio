@@ -64,13 +64,14 @@ let cartTouchStartY = null;
 const byId = id => document.getElementById(id);
 const money = value => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 let feedbackTimer = null;
-function showFeedback(message, type = "info") {
+function showFeedback(message, type = "info", duration = 3000) {
   const region = byId("feedbackRegion");
   if (!region) return;
   region.innerHTML = `<div class="feedback feedback-${type}" role="status"><span>${escapeHtml(message)}</span><button type="button" aria-label="Fechar mensagem">×</button></div>`;
   region.querySelector("button")?.addEventListener("click", () => { region.innerHTML = ""; });
+  region.querySelector(".feedback")?.addEventListener("click", () => { region.innerHTML = ""; });
   window.clearTimeout(feedbackTimer);
-  feedbackTimer = window.setTimeout(() => { region.innerHTML = ""; }, 5200);
+  feedbackTimer = window.setTimeout(() => { region.innerHTML = ""; }, duration);
 }
 const cleanText = value => String(value || "")
   .replace(/\s+/g, " ")
@@ -287,17 +288,26 @@ async function copyPixKey() {
     if (btn) btn.classList.add("is-copied");
     if (btnText) btnText.textContent = "Chave copiada! ✓";
     if (card) card.classList.add("is-copied");
-    if (banner) banner.hidden = false;
+    if (banner) {
+      banner.hidden = false;
+      banner.classList.remove("animate-out");
+    }
 
-    showFeedback("Chave Pix copiada com sucesso! Cole no app do seu banco.", "success");
+    showFeedback("Chave Pix copiada com sucesso!", "success", 2000);
 
     if (copyPixResetTimer) clearTimeout(copyPixResetTimer);
     copyPixResetTimer = setTimeout(() => {
       if (btn) btn.classList.remove("is-copied");
       if (btnText) btnText.textContent = "Copiar chave";
       if (card) card.classList.remove("is-copied");
-      if (banner) banner.hidden = true;
-    }, 4500);
+      if (banner) {
+        banner.classList.add("animate-out");
+        setTimeout(() => {
+          banner.hidden = true;
+          banner.classList.remove("animate-out");
+        }, 200);
+      }
+    }, 2000);
   } else {
     if (keyEl) {
       const range = document.createRange();
@@ -985,6 +995,23 @@ async function init() {
   byId("pixKeyBox")?.addEventListener("click", event => {
     if (event.target.closest("#copyPixBtn")) return;
     copyPixKey();
+  });
+  byId("pixFeedbackBanner")?.addEventListener("click", () => {
+    if (copyPixResetTimer) clearTimeout(copyPixResetTimer);
+    byId("copyPixBtn")?.classList.remove("is-copied");
+    const btnText = byId("copyPixBtnText");
+    if (btnText) btnText.textContent = "Copiar chave";
+    byId("pixPaymentFields")?.classList.remove("is-copied");
+    const banner = byId("pixFeedbackBanner");
+    if (banner) {
+      banner.classList.add("animate-out");
+      setTimeout(() => {
+        banner.hidden = true;
+        banner.classList.remove("animate-out");
+      }, 150);
+    }
+    const region = byId("feedbackRegion");
+    if (region) region.innerHTML = "";
   });
 
   byId("categories").addEventListener("click", event => {
