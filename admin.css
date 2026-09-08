@@ -820,10 +820,12 @@ input:disabled, textarea:disabled { color: var(--ink); background: var(--surface
 .settings-save-bar .primary { border-color: var(--green); background: var(--green); box-shadow: 0 7px 16px rgba(22, 121, 111, .18); }
 .settings-save-bar .primary:hover { background: #0e655c; }
 .marketing-form { display: grid; gap: 10px; margin-bottom: 14px; }
+.promo-form-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .promo-form-grid { display: grid; grid-template-columns: 1.2fr 1fr 170px 140px 190px 190px; gap: 9px; }
 .promo-form-grid label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 800; }
 .promo-list { display: grid; gap: 10px; }
-.promo-card { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-sm); }
+.promo-card { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-sm); transition: border-color .18s ease, box-shadow .18s ease; }
+.promo-card.is-editing { border-color: var(--saffron); box-shadow: 0 0 0 2px rgba(216, 170, 89, .35); }
 .promo-card > div:first-of-type { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .promo-code { padding: 4px 7px; border-radius: 999px; color: var(--plum); background: var(--saffron-soft); font-size: 10px; font-weight: 800; letter-spacing: .04em; }
 .promo-discount { color: var(--green); font-size: 11px; font-weight: 800; }

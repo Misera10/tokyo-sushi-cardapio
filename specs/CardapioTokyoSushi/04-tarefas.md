@@ -27,7 +27,7 @@
 - [ ] Validar descontos, acréscimos, cupons, pagamento em dinheiro e cálculo de troco no PDV.
 - [ ] Aplicar a migração de atributos ampliados de produtos e validar o CRUD do editor de cardápio.
 - [ ] Validar arquivamento/restauração, grupos, filtros, dias/canais, etiquetas e estoque rápido.
-- [ ] Validar o Financeiro: períodos, filtro por cliente, indicadores, gráficos por dia/mês/ano, produtos, descontos, exportação e controle diário de compras/despesas.
+- [x] Validar o Financeiro: períodos, filtro por cliente, indicadores, gráficos por dia/mês/ano, produtos, descontos, exportação e controle diário de compras/despesas (com edição protegida contra limpeza de rascunho).
 - [ ] Validar configurações operacionais: templates de WhatsApp, impressão de teste, impressão automática, cópias, largura/margem do papel, conteúdo da comanda e alertas de novos pedidos.
 - [ ] Ativar Push real para novos pedidos: VAPID, inscrição por dispositivo, `tks_push_subscriptions`, emissor server-side, limpeza de endpoints expirados e teste com o Admin fechado.
 - [x] Criar o agente Windows próprio de impressão com fila local, descoberta da impressora padrão, impressão de pedido, teste e endpoints locais protegidos.
@@ -39,6 +39,12 @@
 - [x] Validar horário de funcionamento: domingo a sábado, dia habilitado/desabilitado, abertura, fechamento, janela atravessando meia-noite e bloqueio automático do cardápio fora do horário.
 - [ ] Validar arquivamento de venda pelo Financeiro, confirmação, remoção do relatório e rollback quando o banco falhar.
 - [x] Validar CRUD operacional de linhas do pedido no carrinho: adicionar, alterar quantidade, remover e limpar.
+- [x] Corrigir e validar fluxo de edição de despesas no Financeiro (preservação de dados e scroll).
+- [x] Corrigir e validar edição de promoções/cupons por ID com botão Cancelar edição e scroll.
+- [x] Implementar migração automática de chaves de clientes ao editar telefone, evitando registros órfãos.
+- [x] Garantir escuta dos eventos 'change' e 'input' nos checkboxes de complementos.
+- [x] Integrar chave Pix (`tokiosushituntum@gmail.com`) isolada para cópia fácil na mensagem do WhatsApp, botão de cópia com feedback no carrinho e gestão no Admin.
+- [x] Tornar o debounce de salvamento assíncrono de produtos e complementos resiliente a mutações de array por ID.
 
 ## Concluido
 

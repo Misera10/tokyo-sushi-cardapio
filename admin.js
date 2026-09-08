@@ -12,6 +12,8 @@ const DEFAULT_WEEKLY_SCHEDULE = window.TokyoSchedule?.defaultWeekly?.() || [
 ];
 const DEFAULT_OPERATION_SETTINGS = {
   whatsappNumber: STORE.phone || "",
+  pixKey: STORE.pix || "tokiosushituntum@gmail.com",
+  pixBeneficiary: STORE.pixBeneficiary || "Fabiano R Fernandes",
   whatsappOrderTemplate: "Olá, {cliente}! 👋\n\nRecebemos seu pedido na {loja}.\n\n{resumo}\n\nA retirada é feita no balcão. Avisaremos por aqui assim que estiver pronto.\n\nObrigado por escolher a {loja}!",
   whatsappReadyTemplate: "Olá, {cliente}! 🍣\n\nSeu pedido #{pedido} da {loja} está pronto para retirada.\n\nPode retirar no balcão quando chegar. Se precisar falar com a gente, responda esta mensagem.\n\nObrigado!",
   printOnNewOrder: false,
@@ -506,7 +508,10 @@ let menuGroups = normalizeMenuGroups(JSON.parse(localStorage.getItem("tokyoMenuG
 let menuFilters = { search: "", group: "", status: "all", sort: "group", ...readMenuFilters() };
 let orders = JSON.parse(localStorage.getItem("tokyoOrders") || "[]").map(normalizeOrder);
 let metricsHidden = localStorage.getItem(METRICS_VISIBILITY_KEY) === "true";
-let promos = JSON.parse(localStorage.getItem("tokyoPromos") || "[]");
+let promos = (JSON.parse(localStorage.getItem("tokyoPromos") || "[]")).map((promo, idx) => ({
+  ...promo,
+  id: promo.id || `promo-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`
+}));
 let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "null") || DEFAULT_COMPLEMENTS;
 let storeStatus = normalizeStoreStatus(JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") || STORE_STATUS.open);
 let cashSession = JSON.parse(localStorage.getItem("tokyoCashSession") || "null") || { open: false, opening: 0, transactions: [] };
@@ -718,6 +723,8 @@ function normalizeOperationSettings(value = {}) {
     : DEFAULT_WEEKLY_SCHEDULE.map(day => ({ ...day, ...(settings.weeklySchedule || []).find(item => Number(item?.day) === day.day) }));
   return {
     ...settings,
+    pixKey: String(settings.pixKey || DEFAULT_OPERATION_SETTINGS.pixKey || "").trim(),
+    pixBeneficiary: String(settings.pixBeneficiary || DEFAULT_OPERATION_SETTINGS.pixBeneficiary || "").trim(),
     whatsappNumber: String(settings.whatsappNumber || DEFAULT_OPERATION_SETTINGS.whatsappNumber).replace(/\D/g, ""),
     whatsappOrderTemplate: String(settings.whatsappOrderTemplate || DEFAULT_OPERATION_SETTINGS.whatsappOrderTemplate) === legacyOrderTemplate
       ? DEFAULT_OPERATION_SETTINGS.whatsappOrderTemplate
@@ -742,12 +749,16 @@ function saveOperationSettings() {
   localStorage.setItem("tokyoStoreSchedule", JSON.stringify({ enabled: operationSettings.scheduleEnabled, weekly: operationSettings.weeklySchedule }));
   runOnline(() => window.TokyoDb.saveSetting("operation_settings", operationSettings), "Falha ao salvar configurações online.");
   runOnline(() => window.TokyoDb.saveSetting("whatsapp_contact", operationSettings.whatsappNumber), "Falha ao salvar WhatsApp público online.");
+  runOnline(() => window.TokyoDb.saveSetting("pix_key", operationSettings.pixKey), "Falha ao salvar chave Pix online.");
+  runOnline(() => window.TokyoDb.saveSetting("pix_beneficiary", operationSettings.pixBeneficiary), "Falha ao salvar beneficiário Pix online.");
   runOnline(() => window.TokyoDb.saveSetting("store_schedule", { enabled: operationSettings.scheduleEnabled, weekly: operationSettings.weeklySchedule }), "Falha ao salvar horário de funcionamento online.");
 }
 
 function renderOperationSettings() {
   const fields = {
     settingsWhatsappNumber: operationSettings.whatsappNumber,
+    settingsPixKey: operationSettings.pixKey || DEFAULT_OPERATION_SETTINGS.pixKey,
+    settingsPixBeneficiary: operationSettings.pixBeneficiary || DEFAULT_OPERATION_SETTINGS.pixBeneficiary,
     settingsWhatsappOrderTemplate: operationSettings.whatsappOrderTemplate,
     settingsWhatsappReadyTemplate: operationSettings.whatsappReadyTemplate,
     settingsPrinterWidth: operationSettings.printerWidth,
@@ -936,20 +947,49 @@ function fillPdvCustomer(field) {
   if (field === "phone" && customer.name) byId("pdvCustomer").value = customer.name;
 }
 
-function scheduleProductSave(index) {
-  clearTimeout(productTimers[index]);
-  productTimers[index] = setTimeout(() => {
+function scheduleProductSave(targetRef) {
+  let product = null;
+  let timerKey = "";
+  if (typeof targetRef === "object" && targetRef !== null) {
+    product = targetRef;
+    timerKey = String(product.id);
+  } else if (typeof targetRef === "number" && menu[targetRef]) {
+    product = menu[targetRef];
+    timerKey = String(product.id || targetRef);
+  } else {
+    product = menu.find(item => String(item.id) === String(targetRef));
+    timerKey = String(targetRef);
+  }
+  if (!product) return;
+  const targetId = product.id;
+  clearTimeout(productTimers[timerKey]);
+  productTimers[timerKey] = setTimeout(() => {
     if (!window.TokyoDb?.enabled) return;
-    runOnline(() => window.TokyoDb.saveProduct(menu[index], index), "Falha ao salvar produto online. O item ficou salvo localmente, mas precisa ser sincronizado.");
+    const currentIndex = menu.findIndex(item => String(item.id) === String(targetId));
+    const currentProduct = currentIndex >= 0 ? menu[currentIndex] : product;
+    runOnline(() => window.TokyoDb.saveProduct(currentProduct, currentIndex >= 0 ? currentIndex : 0), "Falha ao salvar produto online. O item ficou salvo localmente, mas precisa ser sincronizado.");
   }, 500);
 }
 
-function scheduleComplementSave(index) {
-  clearTimeout(complementTimers[index]);
-  complementTimers[index] = setTimeout(() => {
-    const group = complementGroups[index];
-    if (!group) return;
-    runOnline(() => window.TokyoDb.saveComplement(group), "Falha ao salvar complemento online.");
+function scheduleComplementSave(targetRef) {
+  let group = null;
+  let timerKey = "";
+  if (typeof targetRef === "object" && targetRef !== null) {
+    group = targetRef;
+    timerKey = String(group.id);
+  } else if (typeof targetRef === "number" && complementGroups[targetRef]) {
+    group = complementGroups[targetRef];
+    timerKey = String(group.id || targetRef);
+  } else {
+    group = complementGroups.find(item => String(item.id) === String(targetRef));
+    timerKey = String(targetRef);
+  }
+  if (!group) return;
+  const targetId = group.id;
+  clearTimeout(complementTimers[timerKey]);
+  complementTimers[timerKey] = setTimeout(() => {
+    const currentGroup = complementGroups.find(item => String(item.id) === String(targetId)) || group;
+    runOnline(() => window.TokyoDb.saveComplement(currentGroup), "Falha ao salvar complemento online.");
   }, 500);
 }
 
@@ -1026,6 +1066,19 @@ function orderSummary(order) {
     ...(Number(order.surchargeAmount || 0) ? [`Acréscimo: + ${money(order.surchargeAmount)}`] : [])
   ] : [];
   const paymentLines = order.amountReceived != null ? [`Valor recebido: ${money(order.amountReceived)}`, `Troco: ${money(order.changeAmount || 0)}`] : [];
+  const isPix = String(order.payment || "").toLowerCase().includes("pix");
+  const pixKey = operationSettings.pixKey || STORE.pix || "tokiosushituntum@gmail.com";
+  const pixBeneficiary = operationSettings.pixBeneficiary || STORE.pixBeneficiary || "Fabiano R Fernandes";
+  const pixLines = (isPix && order.paymentStatus !== "paid") ? [
+    "",
+    "*DADOS DO PIX*",
+    "Chave Pix (E-mail):",
+    pixKey,
+    "",
+    `Valor: ${money(order.total)}`,
+    `Beneficiário: ${pixBeneficiary}`,
+    "_(Envie o comprovante nesta conversa para confirmarmos o recebimento)_"
+  ] : [];
   return [
     `Pedido #${order.id}`,
     `Cliente: ${order.customerName}`,
@@ -1033,6 +1086,7 @@ function orderSummary(order) {
     ...pricingLines,
     `Total: ${money(order.total)}`,
     ...paymentLines,
+    ...pixLines,
     "",
     ...order.items.flatMap(item => [
       `${item.qty}x ${item.name} - ${money((Number(item.price || 0) + Number(item.unitExtra || 0)) * item.qty)}`,
@@ -1049,14 +1103,18 @@ function orderWhatsappMessage(order) {
 }
 
 function renderWhatsappTemplate(template, order) {
+  const pixKey = operationSettings.pixKey || STORE.pix || "tokiosushituntum@gmail.com";
+  const pixBeneficiary = operationSettings.pixBeneficiary || STORE.pixBeneficiary || "Fabiano R Fernandes";
   const values = {
     cliente: order.customerName || "cliente",
     pedido: order.id || "",
     total: money(order.total || 0),
     resumo: orderSummary(order),
-    loja: STORE.name
+    loja: STORE.name,
+    pix: pixKey,
+    beneficiario: pixBeneficiary
   };
-  return String(template || "").replace(/\{(cliente|pedido|total|resumo|loja)\}/gi, (_, token) => values[token.toLowerCase()] ?? "");
+  return String(template || "").replace(/\{(cliente|pedido|total|resumo|loja|pix|beneficiario)\}/gi, (_, token) => values[token.toLowerCase()] ?? "");
 }
 
 async function printOrder(order, mode = "customer") {
@@ -2532,23 +2590,39 @@ function exportReportCsv() {
   URL.revokeObjectURL(link.href);
 }
 
+function resetPromoForm() {
+  const form = byId("promoForm");
+  if (!form) return;
+  form.reset();
+  delete form.dataset.editId;
+  delete form.dataset.editIndex;
+  const submitBtn = byId("promoSubmitButton") || form.querySelector("button[type=submit]");
+  if (submitBtn) submitBtn.textContent = "Salvar promoção";
+  const cancelBtn = byId("cancelPromoEdit");
+  if (cancelBtn) cancelBtn.hidden = true;
+  renderPromos();
+}
+
 function renderPromos() {
-  byId("promoList").innerHTML = promos.map((promo, index) => `
-    <article class="promo-card">
+  const currentEditId = byId("promoForm")?.dataset?.editId || "";
+  byId("promoList").innerHTML = promos.map((promo, index) => {
+    const promoId = String(promo.id || `promo-${index}`);
+    const isEditing = currentEditId && currentEditId === promoId;
+    return `
+    <article class="promo-card ${isEditing ? "is-editing" : ""}">
       <div><strong>${escapeHtml(promo.title)}</strong>${promoField(promo, "code", "code") ? `<span class="promo-code">${escapeHtml(String(promoField(promo, "code", "code")).toUpperCase())}</span>` : ""}<span class="promo-discount">${promoField(promo, "discountType", "discount_type", "none") === "percent" ? `${Number(promoField(promo, "discountValue", "discount_value", 0))}%` : promoField(promo, "discountType", "discount_type", "none") === "fixed" ? money(promoField(promo, "discountValue", "discount_value", 0)) : "Sem desconto"}</span></div>
       <p>${escapeHtml(promo.text)}</p>
       <small>${promo.active === false ? "Inativo" : "Ativo"}${promoField(promo, "startsAt", "starts_at") ? ` · começa ${escapeHtml(formatDateOnly(promoField(promo, "startsAt", "starts_at")))}` : ""}${promoField(promo, "endsAt", "ends_at") ? ` · termina ${escapeHtml(formatDateOnly(promoField(promo, "endsAt", "ends_at")))}` : ""}</small>
-      <button class="ghost" data-edit-promo="${index}">Editar</button>
-      <button class="ghost" data-duplicate-promo="${index}">Duplicar</button>
-      <button class="ghost" data-copy-promo="${index}">Copiar mensagem</button>
-      <button class="danger" data-remove-promo="${index}">Excluir</button>
+      <button class="ghost" data-edit-promo="${escapeHtml(promoId)}">${isEditing ? "Editando..." : "Editar"}</button>
+      <button class="ghost" data-duplicate-promo="${escapeHtml(promoId)}">Duplicar</button>
+      <button class="ghost" data-copy-promo="${escapeHtml(promoId)}">Copiar mensagem</button>
+      <button class="danger" data-remove-promo="${escapeHtml(promoId)}">Excluir</button>
     </article>
-  `).join("") || `<p>Nenhuma promoção cadastrada.</p>`;
+  `;
+  }).join("") || `<p>Nenhuma promoção cadastrada.</p>`;
 }
 
 function renderAll() {
-  renderStoreControls();
-  renderMetrics();
   renderOrders();
   renderPdv();
   renderPdvFlow();
@@ -2572,6 +2646,7 @@ document.querySelector(".tabs").addEventListener("click", event => {
   });
   document.querySelectorAll(".panel").forEach(panel => panel.classList.remove("active"));
   byId(`${button.dataset.tab}Panel`).classList.add("active");
+  if (button.dataset.tab === "settings") renderOperationSettings();
 });
 
 document.body.addEventListener("input", event => {
@@ -2616,12 +2691,13 @@ document.body.addEventListener("input", event => {
   renderMenuGroups();
 });
 
-document.body.addEventListener("input", event => {
+function handleComplementInput(event) {
   const field = event.target.dataset.complementField;
   const itemField = event.target.dataset.complementItemField;
   if (!field && !itemField) return;
 
-  const group = complementGroups[Number(event.target.dataset.cindex)];
+  const groupIndex = Number(event.target.dataset.cindex);
+  const group = complementGroups[groupIndex];
   if (!group) return;
 
   if (field) {
@@ -2633,7 +2709,8 @@ document.body.addEventListener("input", event => {
   }
 
   if (itemField) {
-    const item = group.items?.[Number(event.target.dataset.iindex)];
+    const itemIndex = Number(event.target.dataset.iindex);
+    const item = group.items?.[itemIndex];
     if (!item) return;
     if (itemField === "active") item[itemField] = event.target.checked;
     else if (["price", "maxQty", "cost"].includes(itemField)) item[itemField] = Math.max(0, Number(event.target.value || 0));
@@ -2642,10 +2719,20 @@ document.body.addEventListener("input", event => {
   }
 
   saveComplements();
-  scheduleComplementSave(Number(event.target.dataset.cindex));
+  scheduleComplementSave(group.id || groupIndex);
+}
+
+document.body.addEventListener("input", event => {
+  if (event.target.dataset.complementField || event.target.dataset.complementItemField) {
+    handleComplementInput(event);
+  }
 });
 
 document.body.addEventListener("change", async event => {
+  if (event.target.dataset.complementField || event.target.dataset.complementItemField) {
+    handleComplementInput(event);
+    return;
+  }
   if (event.target.dataset.orderEditAdjustment) {
     if (!orderEditorDraft) return;
     orderEditorDraft.pricing = {
@@ -2944,8 +3031,8 @@ document.body.addEventListener("click", async event => {
     renderMenuEditor();
   }
   if (target.dataset.editPromo) {
-    const index = Number(target.dataset.editPromo);
-    const promo = promos[index];
+    const promoId = String(target.dataset.editPromo);
+    const promo = promos.find(item => String(item.id) === promoId);
     if (promo) {
       byId("promoTitle").value = promo.title || "";
       byId("promoCode").value = promoField(promo, "code", "code");
@@ -2955,33 +3042,50 @@ document.body.addEventListener("click", async event => {
       byId("promoEndsAt").value = dateOnlyValue(promoField(promo, "endsAt", "ends_at"));
       byId("promoActive").checked = promo.active !== false;
       byId("promoText").value = promo.text || "";
-      byId("promoForm").dataset.editIndex = index;
+      byId("promoForm").dataset.editId = promoId;
+      delete byId("promoForm").dataset.editIndex;
+      const submitBtn = byId("promoSubmitButton") || byId("promoForm").querySelector("button[type=submit]");
+      if (submitBtn) submitBtn.textContent = "Atualizar promoção";
+      const cancelBtn = byId("cancelPromoEdit");
+      if (cancelBtn) cancelBtn.hidden = false;
+      byId("promoForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
       byId("promoTitle").focus();
+      renderPromos();
     }
   }
   if (target.dataset.duplicatePromo) {
-    const promo = promos[Number(target.dataset.duplicatePromo)];
+    const promoId = String(target.dataset.duplicatePromo);
+    const promo = promos.find(item => String(item.id) === promoId);
     if (promo) {
-      const copy = { ...promo, id: undefined, title: `${promo.title} (cópia)`, code: promoField(promo, "code", "code") ? `${promoField(promo, "code", "code")}_COPY` : "", createdAt: new Date().toISOString() };
+      const copy = { ...promo, id: `promo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, title: `${promo.title} (cópia)`, code: promoField(promo, "code", "code") ? `${promoField(promo, "code", "code")}_COPY` : "", createdAt: new Date().toISOString() };
       delete copy.created_at;
       promos.unshift(copy);
       savePromos();
       runOnline(() => window.TokyoDb.savePromo(copy), "Falha ao duplicar promoção online.");
       renderPromos();
+      notify("Promoção duplicada.", "success");
     }
   }
   if (target.dataset.copyPromo) {
-    const promo = promos[Number(target.dataset.copyPromo)];
-    if (promo) await navigator.clipboard.writeText(promo.text);
+    const promoId = String(target.dataset.copyPromo);
+    const promo = promos.find(item => String(item.id) === promoId);
+    if (promo) {
+      await navigator.clipboard.writeText(promo.text);
+      notify("Mensagem copiada para a área de transferência.", "success");
+    }
   }
   if (target.dataset.removePromo) {
-    const index = Number(target.dataset.removePromo);
-    const promo = promos[index];
+    const promoId = String(target.dataset.removePromo);
+    const promo = promos.find(item => String(item.id) === promoId);
     if (!promo || !await askConfirm(`A promoção "${promo.title}" será removida.`, { title: "Excluir promoção?", confirmLabel: "Excluir promoção" })) return;
-    promos.splice(index, 1);
+    if (byId("promoForm")?.dataset?.editId === promoId) {
+      resetPromoForm();
+    }
+    promos = promos.filter(item => String(item.id) !== promoId);
     savePromos();
-    if (promo?.id) runOnline(() => window.TokyoDb.deletePromo(promo.id), "Falha ao excluir promocao online.");
+    if (promo?.id) runOnline(() => window.TokyoDb.deletePromo(promo.id), "Falha ao excluir promoção online.");
     renderPromos();
+    notify("Promoção excluída.", "success");
   }
   if (target.dataset.duplicateComplement) {
     const source = complementGroups[Number(target.dataset.duplicateComplement)];
@@ -2998,7 +3102,7 @@ document.body.addEventListener("click", async event => {
     const group = complementGroups[Number(target.dataset.addComplementItem)];
     if (!group) return;
     group.items = group.items || [];
-     group.items.push({ id: Date.now(), name: "Novo complemento", price: 0, maxQty: 100, cost: 0, description: "", tags: [], active: true });
+    group.items.push({ id: Date.now(), name: "Novo complemento", price: 0, maxQty: 100, cost: 0, description: "", tags: [], active: true });
     saveComplements();
     scheduleComplementSave(Number(target.dataset.addComplementItem));
     renderComplements();
@@ -3112,11 +3216,12 @@ document.body.addEventListener("click", async event => {
     const expense = expenses.find(item => String(item.id) === String(target.dataset.expenseId));
     if (action === "cancel-edit") {
       expenseEditingId = "";
-      renderReports();
+      renderReports({ preserveExpenseDraft: false });
     } else if (action === "edit" && expense) {
       expenseEditingId = expense.id;
       financeView = "expenses";
-      renderReports();
+      renderReports({ preserveExpenseDraft: false });
+      byId("expenseForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
       byId("expenseDescription")?.focus();
     } else if (action === "delete" && expense && await askConfirm(`A compra "${expense.description}" será removida do resultado.`, { title: "Excluir compra?", confirmLabel: "Excluir compra" })) {
       expenses = expenses.filter(item => String(item.id) !== String(expense.id));
@@ -3164,6 +3269,8 @@ document.body.addEventListener("submit", event => {
     }));
     operationSettings = normalizeOperationSettings({
       whatsappNumber: byId("settingsWhatsappNumber").value,
+      pixKey: byId("settingsPixKey")?.value?.trim() || DEFAULT_OPERATION_SETTINGS.pixKey,
+      pixBeneficiary: byId("settingsPixBeneficiary")?.value?.trim() || DEFAULT_OPERATION_SETTINGS.pixBeneficiary,
       whatsappOrderTemplate: byId("settingsWhatsappOrderTemplate").value,
       whatsappReadyTemplate: byId("settingsWhatsappReadyTemplate").value,
       printerWidth: byId("settingsPrinterWidth").value,
@@ -3313,25 +3420,26 @@ byId("promoForm").addEventListener("submit", async event => {
   };
   if (promoData.discountType === "percent" && promoData.discountValue > 100) return notify("O desconto percentual não pode passar de 100%.");
   if (promoData.code && promoData.discountType === "none") return notify("Escolha o tipo e o valor do desconto para ativar um cupom.");
-  const editIndex = event.target.dataset.editIndex;
-  const submitButton = event.target.querySelector("button[type=submit]");
-  const originalLabel = submitButton?.textContent || "Salvar promoção";
+  const editId = event.target.dataset.editId;
+  const submitButton = byId("promoSubmitButton") || event.target.querySelector("button[type=submit]");
+  const originalLabel = submitButton?.textContent || (editId ? "Atualizar promoção" : "Salvar promoção");
   if (submitButton) {
     submitButton.disabled = true;
-    submitButton.textContent = "Salvando promoção...";
+    submitButton.textContent = editId ? "Atualizando promoção..." : "Salvando promoção...";
   }
   let syncedOnline = false;
   try {
-    if (editIndex !== undefined && promos[Number(editIndex)]) {
-      const promo = promos[Number(editIndex)];
-      Object.assign(promo, promoData);
-      if (promo.id && window.TokyoDb?.enabled) {
-        await window.TokyoDb.updatePromo(promo.id, promo);
-        syncedOnline = true;
+    if (editId) {
+      const promo = promos.find(item => String(item.id) === String(editId));
+      if (promo) {
+        Object.assign(promo, promoData);
+        if (promo.id && window.TokyoDb?.enabled) {
+          await window.TokyoDb.updatePromo(promo.id, promo);
+          syncedOnline = true;
+        }
       }
-      delete event.target.dataset.editIndex;
     } else {
-      const promo = { ...promoData, createdAt: new Date().toISOString() };
+      const promo = { ...promoData, id: `promo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, createdAt: new Date().toISOString() };
       if (window.TokyoDb?.enabled) {
         const savedPromo = await window.TokyoDb.savePromo(promo);
         if (savedPromo?.id) promo.id = savedPromo.id;
@@ -3340,8 +3448,7 @@ byId("promoForm").addEventListener("submit", async event => {
       promos.unshift(promo);
     }
     savePromos();
-    event.target.reset();
-    renderPromos();
+    resetPromoForm();
     notify(syncedOnline ? "Promoção salva e sincronizada com o painel online." : "Promoção salva neste dispositivo.", "success");
   } catch (error) {
     savePromos();
@@ -3351,14 +3458,17 @@ byId("promoForm").addEventListener("submit", async event => {
   } finally {
     if (submitButton) {
       submitButton.disabled = false;
-      submitButton.textContent = originalLabel;
+      submitButton.textContent = event.target.dataset.editId ? "Atualizar promoção" : "Salvar promoção";
     }
   }
 });
 
+byId("cancelPromoEdit")?.addEventListener("click", resetPromoForm);
+
 byId("addCustomer").addEventListener("click", () => openCustomerEditor());
 byId("cancelCustomer").addEventListener("click", () => {
   byId("customerForm").reset();
+  byId("customerKey").value = "";
   byId("customerForm").hidden = true;
 });
 byId("customerForm").addEventListener("submit", event => {
@@ -3366,16 +3476,32 @@ byId("customerForm").addEventListener("submit", event => {
   const existingKey = byId("customerKey").value;
   const name = byId("customerNameEdit").value.trim();
   const phone = byId("customerPhoneEdit").value.trim();
-  const key = existingKey || customerKey(name, phone);
-  customerProfiles[key] = { ...(customerProfiles[key] || {}), name, phone, notes: byId("customerNotesEdit").value.trim(), createdAt: customerProfiles[key]?.createdAt || new Date().toISOString() };
+  const newKey = customerKey(name, phone);
+  const key = newKey || existingKey;
+
+  const previousData = existingKey ? customerProfiles[existingKey] : null;
+  const updatedProfile = {
+    ...(previousData || {}),
+    name,
+    phone,
+    notes: byId("customerNotesEdit").value.trim(),
+    createdAt: previousData?.createdAt || new Date().toISOString()
+  };
+
+  if (existingKey && existingKey !== key) {
+    delete customerProfiles[existingKey];
+    hiddenCustomerKeys = (hiddenCustomerKeys || []).map(k => k === existingKey ? key : k);
+  }
+
+  customerProfiles[key] = updatedProfile;
   hiddenCustomerKeys = (hiddenCustomerKeys || []).filter(item => item !== key);
   saveCustomerData();
   event.target.reset();
+  byId("customerKey").value = "";
   event.target.hidden = true;
   renderCustomers();
   notify(existingKey ? "Cliente atualizado." : "Cliente cadastrado.", "success");
 });
-
 byId("addComplementGroup").addEventListener("click", () => {
   const group = {
     id: Date.now(),

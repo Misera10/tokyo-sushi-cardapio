@@ -34,6 +34,12 @@
 - Financeiro: pedidos válidos não cancelados continuam no filtro operacional, mas somente pedidos com pagamento `paid` entram no faturamento recebido, ticket médio, formas de pagamento, produtos, gráficos e lucro; pedidos pendentes aparecem separadamente como “A receber”.
 - Privacidade do painel: as métricas superiores de vendas, pedidos, abertos e ticket médio possuem um controle local de ocultação; os rótulos permanecem visíveis, enquanto os números são mascarados no navegador até o operador revelar novamente.
 - CRUD operacional: produtos, listas de adicionais, clientes/memória, cupons e promoções possuem criação, leitura, edição e remoção/ocultação compatíveis com o histórico. A aba de Clientes mantém somente o cadastro; o filtro por cliente e o consumo ficam no Financeiro. O pedido possui criação, leitura, atualização de status, cancelamento e arquivamento; enquanto está em montagem no PDV, suas linhas permitem adicionar, alterar quantidade, remover e limpar o carrinho.
+- Especificações de edição segura e formulários:
+  - **Financeiro**: Ao entrar em modo de edição de uma despesa, a interface rola suavemente até `#expenseForm`, foca na descrição e bloqueia a limpeza acidental de rascunhos passando `{ preserveExpenseDraft: false }` para `renderReports()`. O botão "Cancelar" desativa o modo de edição e restaura o formulário limpo.
+  - **Promoções e Cupons**: A edição é indexada exclusivamente pelo ID único persistente da promoção (`dataset.editId = promo.id`), nunca por índice numérico posicional de array. O botão de submit alterna para "Atualizar promoção", o botão "Cancelar edição" é exibido, a tela rola suavemente até o formulário e o card em edição recebe a classe visual `.is-editing`. A função `resetPromoForm()` restaura o estado inicial do formulário ao cancelar ou ao concluir o salvamento.
+  - **Clientes**: A chave de identificação do cliente (`customerKey`) é gerada a partir dos dígitos do telefone. Ao editar um cliente e alterar seu número de telefone, o sistema migra os dados atomicamente para a nova chave, preservando histórico e notas, e remove a chave antiga (`delete customerProfiles[existingKey]`), impedindo registros órfãos e garantindo que novos pedidos pelo novo número recuperem o perfil cadastrado.
+  - **Complementos e Adicionais**: O gerenciamento de ativo/inativo dos adicionais e listas (`data-complement-field="active"` e `data-complement-item-field="active"`) utiliza um manipulador compartilhado `handleComplementInput(event)` registrado tanto em `input` quanto em `change`. Isso assegura compatibilidade universal com navegadores e webviews onde checkboxes disparam prioritariamente `change`.
+  - **Debounce de Salvamento Seguro no Cardápio e Complementos**: `scheduleProductSave` e `scheduleComplementSave` chaveiam os timers assíncronos (`setTimeout` de 500ms) pelo ID do item, e não por índice numérico. Ao disparar o timer, o índice atualizado no array é recalculado dinamicamente via `findIndex`, tornando a sincronização imune a deslocamentos gerados por adições (`unshift`) ou reordenações concorrentes na interface.
 - O editor administrativo de cardápio usa arquivamento reversível em vez de apagar produtos, permite filtrar e ordenar a operação, e só publica item ativo, não arquivado, disponível no dia e no canal de retirada.
 - Horário de funcionamento: quando o modo automático está ativo, o status efetivo é calculado no fuso `America/Sao_Paulo`; dia desabilitado ou horário vazio mantém a loja fechada. Janelas que atravessam meia-noite são aceitas quando o fechamento é menor que a abertura. O status efetivo substitui o status manual no Admin e no cardápio público; com modo automático desligado, o status manual continua sendo a fonte de verdade.
 - Prioridade operacional do status: existem somente os estados visíveis `open` e `closed`. O fechamento manual tem prioridade sobre a agenda automática somente no dia local em que foi acionado (`manualOverrideDate` em `America/Sao_Paulo`); abrir remove a sobreposição imediatamente, e a virada do dia a expira automaticamente. Valores legados diferentes de `open` são normalizados para `closed`.
@@ -105,4 +111,19 @@ O editor aparece progressivamente dentro do card do pedido, sem retirar o operad
 - Risco: recuperação de senha ou login redirecionado para outro sistema no projeto Supabase compartilhado.
   - Mitigação: callback explícito por ambiente para `/admin.html`, URLs locais e de produção liberadas no Supabase e validação do usuário em `tks_admins` após o login.
 - Backup e recuperação: o schema e as migrações ficam no Git; os dados `tks_*` possuem exportador REST autenticado em `scripts/export-tks-backup.ps1`. O backup local é ignorado pelo Git e nunca contém a chave de servidor. A recuperação deve ser testada primeiro em ambiente separado e não usa `DELETE`/`TRUNCATE` automático.
+
+## Fluxo de Pagamento via Pix e Cópia em 1 Toque
+
+- **Chave Pix Oficial**: `tokiosushituntum@gmail.com` (Tipo: E-mail, Beneficiário: Fabiano R Fernandes).
+- **Interface Pública do Carrinho (`index.html`, `app.css`, `app.js`)**:
+  - Exibe o container `#pixPaymentFields` automaticamente quando a forma de pagamento selecionada for "Pix".
+  - Apresenta a chave, a identificação do titular ("Beneficiário: Fabiano R Fernandes") e um botão de ação com ícone e rótulo "Copiar chave".
+  - O clique copia a chave para a área de transferência usando `navigator.clipboard.writeText` (com fallback robusto via elemento temporário) e altera o botão para "Copiado! ✓" com classe visual e alerta acessível.
+- **Formatação de Mensagem WhatsApp (`buildMessage`)**:
+  - Quando a forma de pagamento for Pix, inclui um bloco estruturado contendo a chave Pix em uma linha exclusiva e desprovida de caracteres de pontuação adjacentes (`tokiosushituntum@gmail.com`), acompanhada de `Beneficiário: Fabiano R Fernandes`.
+  - Esse padrão possibilita a seleção/cópia com um único toque ou toque longo diretamente nos aplicativos móveis do WhatsApp (Android e iOS).
+- **Painel Administrativo (`admin.html`, `admin.js`)**:
+  - Permite configuração da chave Pix (`#settingsPixKey`) e do nome do titular (`#settingsPixBeneficiary`) na aba Configurações com sincronização online e persistência local.
+  - Suporta as tags `{pix}` e `{beneficiario}` nos templates customizáveis de mensagens WhatsApp.
+  - No resumo do pedido (`orderSummary`), pedidos pendentes com pagamento em Pix incluem os dados para facilitar o reenvio ao cliente.
 

@@ -82,6 +82,28 @@
             <option>Dinheiro</option>
           </select>
         </label>
+        <div id="pixPaymentFields" class="pix-payment">
+          <div class="pix-payment-head">
+            <span class="pix-payment-title">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-1 15.5l-4-4 1.41-1.41L11 14.67l6.59-6.59L19 9.5l-8 8z"/></svg>
+              Chave Pix Tokyo Sushi
+            </span>
+            <span class="pix-payment-badge">E-mail</span>
+          </div>
+          <div class="pix-key-box">
+            <code class="pix-key-value" id="pixKeyValue">tokiosushituntum@gmail.com</code>
+            <button type="button" id="copyPixBtn" class="pix-copy-btn" aria-label="Copiar chave Pix">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span id="copyPixBtnText">Copiar chave</span>
+            </button>
+          </div>
+          <div class="pix-beneficiary-info" id="pixBeneficiaryInfo">
+            <span>Beneficiário: <strong id="pixBeneficiaryName">Fabiano R Fernandes</strong></span>
+          </div>
+          <p class="pix-payment-note" id="pixPaymentNote">
+            Copie a chave para pagar no app do seu banco. Ao enviar o pedido, você também receberá a chave no WhatsApp para enviar o comprovante.
+          </p>
+        </div>
         <div id="cashPaymentFields" class="cash-payment" hidden>
           <label>
             Troco para (valor recebido)

@@ -5,7 +5,8 @@ window.TOKYO_DATA = {
     "hours": "Retirada em aproximadamente 25 min",
     "instagram": "https://instagram.com/tokyosushituntum",
     "address": "Rua Beco do Pereira - Chácara Viana",
-    "pix": "tokiosushituntum@gmail.com"
+    "pix": "tokiosushituntum@gmail.com",
+    "pixBeneficiary": "Fabiano R Fernandes"
   },
   "menu": [
     {

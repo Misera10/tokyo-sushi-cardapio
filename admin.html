@@ -368,7 +368,10 @@
         </div>
         <label class="check-line"><input id="promoActive" type="checkbox" checked> Cupom ativo</label>
         <textarea id="promoText" rows="4" placeholder="Mensagem para enviar aos clientes"></textarea>
-        <button class="primary">Salvar promoção</button>
+        <div class="promo-form-actions">
+          <button class="primary" id="promoSubmitButton" type="submit">Salvar promoção</button>
+          <button class="ghost" id="cancelPromoEdit" type="button" hidden>Cancelar edição</button>
+        </div>
       </form>
       <div class="promo-list" id="promoList"></div>
     </section>
@@ -383,11 +386,13 @@
       <form class="operation-settings-form" id="operationSettingsForm">
         <div class="operation-settings-grid">
           <article class="settings-card">
-            <div class="settings-card-head"><span class="section-kicker">01 · Comunicação</span><h2>WhatsApp</h2><p>Padronize os textos usados para enviar o resumo e avisar quando o pedido estiver pronto.</p></div>
+            <div class="settings-card-head"><span class="section-kicker">01 · Comunicação</span><h2>WhatsApp &amp; Pagamento</h2><p>Padronize os textos usados para enviar o resumo, avisar pedidos prontos e a chave Pix da loja.</p></div>
             <label>WhatsApp de atendimento<input id="settingsWhatsappNumber" inputmode="tel" placeholder="(99) 99999-9999"></label>
+            <label>Chave Pix da loja (E-mail)<input id="settingsPixKey" placeholder="tokiosushituntum@gmail.com"></label>
+            <label>Nome do beneficiário Pix<input id="settingsPixBeneficiary" placeholder="Fabiano R Fernandes"></label>
             <label>Mensagem de resumo do pedido<textarea id="settingsWhatsappOrderTemplate" rows="6"></textarea></label>
             <label>Mensagem de pedido pronto<textarea id="settingsWhatsappReadyTemplate" rows="3"></textarea></label>
-            <p class="settings-help">Variáveis disponíveis: <code>{cliente}</code>, <code>{pedido}</code>, <code>{total}</code>, <code>{resumo}</code> e <code>{loja}</code>. O texto de pedido pronto é usado automaticamente quando o pedido chega em “Prontos”.</p>
+            <p class="settings-help">Variáveis disponíveis: <code>{cliente}</code>, <code>{pedido}</code>, <code>{total}</code>, <code>{resumo}</code>, <code>{pix}</code>, <code>{beneficiario}</code> e <code>{loja}</code>. O texto de pedido pronto é usado automaticamente quando o pedido chega em “Prontos”.</p>
           </article>
           <article class="settings-card">
             <div class="settings-card-head"><span class="section-kicker">02 · Produção</span><h2>Impressão</h2><p>Configure o formato da comanda e escolha se novos pedidos devem ser enviados para impressão automaticamente.</p></div>
@@ -484,6 +489,6 @@
   <script src="db.js?v=20260814-payment-guard-1"></script>
   <script src="menu-data.js?v=28"></script>
   <script src="schedule.js?v=2"></script>
-    <script src="admin.js?v=20260817-push-auto-1"></script>
+    <script src="admin.js?v=20260817-push-auto-3"></script>
 </body>
 </html>

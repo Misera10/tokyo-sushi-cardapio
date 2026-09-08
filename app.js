@@ -44,6 +44,13 @@ function normalizeBusinessWhatsapp(value) {
 }
 
 let businessWhatsapp = normalizeBusinessWhatsapp(STORE.phone);
+let storePix = String(STORE.pix || "tokiosushituntum@gmail.com").trim();
+let storePixBeneficiary = String(STORE.pixBeneficiary || "Fabiano R Fernandes").trim();
+try {
+  const localSettings = JSON.parse(localStorage.getItem("tokyoOperationSettings") || "{}");
+  if (localSettings.pixKey) storePix = String(localSettings.pixKey).trim();
+  if (localSettings.pixBeneficiary) storePixBeneficiary = String(localSettings.pixBeneficiary).trim();
+} catch {}
 
 let searchTerm = "";
 let cart = JSON.parse(localStorage.getItem("sushiCart") || "{}");
@@ -197,6 +204,57 @@ function renderCashPayment(total = cartTotal()) {
   } else {
     hint.textContent = `Troco: ${money(cash.change)}`;
     hint.className = "cash-change is-valid";
+  }
+}
+
+function renderPixPayment() {
+  const fields = byId("pixPaymentFields");
+  const isPix = byId("paymentMethod")?.value === "Pix";
+  if (fields) {
+    fields.hidden = !isPix;
+    const keyValueEl = byId("pixKeyValue");
+    if (keyValueEl) keyValueEl.textContent = storePix;
+    const beneficiaryEl = byId("pixBeneficiaryName");
+    if (beneficiaryEl) beneficiaryEl.textContent = storePixBeneficiary;
+  }
+}
+
+async function copyPixKey() {
+  const key = storePix || "tokiosushituntum@gmail.com";
+  const btn = byId("copyPixBtn");
+  const btnText = byId("copyPixBtnText");
+  let copied = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(key);
+      copied = true;
+    } else {
+      const tempInput = document.createElement("textarea");
+      tempInput.value = key;
+      tempInput.setAttribute("readonly", "");
+      tempInput.style.position = "absolute";
+      tempInput.style.left = "-9999px";
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      copied = document.execCommand("copy");
+      document.body.removeChild(tempInput);
+    }
+  } catch {
+    copied = false;
+  }
+
+  if (copied) {
+    if (btn && btnText) {
+      btn.classList.add("copied");
+      btnText.textContent = "Copiado! ✓";
+      setTimeout(() => {
+        btn.classList.remove("copied");
+        btnText.textContent = "Copiar chave";
+      }, 3000);
+    }
+    showFeedback("Chave Pix copiada com sucesso!", "success");
+  } else {
+    showFeedback(`Chave Pix: ${key}`, "info");
   }
 }
 
@@ -360,6 +418,23 @@ async function loadWhatsappContactFromDb() {
     if (normalized) businessWhatsapp = normalized;
   } catch (error) {
     console.warn("Falha ao carregar WhatsApp de atendimento. Usando o padrão local.", error);
+  }
+}
+
+async function loadPixKeyFromDb() {
+  if (!window.TokyoDb?.enabled) return;
+  try {
+    const value = await window.TokyoDb.loadSetting("pix_key", storePix);
+    if (value && typeof value === "string" && value.trim()) {
+      storePix = value.trim();
+    }
+    const benValue = await window.TokyoDb.loadSetting("pix_beneficiary", storePixBeneficiary);
+    if (benValue && typeof benValue === "string" && benValue.trim()) {
+      storePixBeneficiary = benValue.trim();
+    }
+    renderPixPayment();
+  } catch (error) {
+    console.warn("Falha ao carregar chave Pix online. Usando o padrão local.", error);
   }
 }
 
@@ -533,6 +608,7 @@ function renderCart() {
 
   byId("totalValue").textContent = money(total);
   renderCashPayment(total);
+  renderPixPayment();
   byId("sendOrder").disabled = total <= 0 || !isStoreOpen();
   byId("mobileCartBar").hidden = total <= 0;
   byId("mobileCartCount").textContent = `Ver pedido • ${count} ${count === 1 ? "item" : "itens"}`;
@@ -633,6 +709,21 @@ function buildMessage() {
   });
 
   lines.push("", `Total: ${money(total)}`);
+
+  const isPix = String(payment).toLowerCase().includes("pix");
+  if (isPix) {
+    lines.push(
+      "",
+      "*DADOS PARA PAGAMENTO PIX*",
+      "Chave Pix (E-mail):",
+      storePix,
+      "",
+      `Valor a transferir: ${money(total)}`,
+      `Beneficiário: ${storePixBeneficiary}`,
+      "_(Copie a chave acima para pagar no aplicativo do seu banco e envie o comprovante nesta conversa)_"
+    );
+  }
+
   if (cash.isCash) {
     lines.push(`Valor recebido: ${money(cash.amountReceived)}`, `Troco: ${money(cash.change)}`);
   }
@@ -802,7 +893,8 @@ async function init() {
   await Promise.all([
     loadStoreStatusFromDb(),
     loadStoreScheduleFromDb(),
-    loadWhatsappContactFromDb()
+    loadWhatsappContactFromDb(),
+    loadPixKeyFromDb()
   ]);
   setupWhatsappContact();
   renderStoreStatus();
@@ -837,6 +929,7 @@ async function init() {
     if (byId("paymentMethod").value === "Dinheiro") byId("amountReceived")?.focus();
   });
   byId("amountReceived")?.addEventListener("input", () => renderCart());
+  byId("copyPixBtn")?.addEventListener("click", copyPixKey);
 
   byId("categories").addEventListener("click", event => {
     const button = event.target.closest("button[data-cat]");
