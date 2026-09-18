@@ -6,6 +6,46 @@ O formato baseia-se em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0
 
 ---
 
+## [2026-09-18] — Correção Definitiva de Horário de Funcionamento & Bloqueio com 0 Dias Habilitados
+
+### 🔒 Correção de Segurança & Regra de Negócio Crítica (Horário e Agenda)
+
+#### 1. Bloqueio Total e Irrestrito quando Todos os Dias Estão Desmarcados (0 Dias Ativos)
+- **Problema Relatado**: Mesmo com todos os 7 dias da semana desmarcados na seção de "Horário de funcionamento" das configurações do painel admin, um cliente conseguiu enviar um pedido pelo cardápio público (Pedido #100).
+- **Causa Raiz Identificada**:
+  1. A função PostgreSQL `public.tks_store_is_open()` no Supabase verificava `if coalesce((schedule->>'enabled')::boolean, false) is not true then return lower(coalesce(status->>'mode', 'open')) = 'open'; end if;`. Se o checkbox "Usar horário automático" estivesse desmarcado (`enabled: false`), a função ignorava completamente os dias da semana e recorria ao `status.mode` (que permanecia "open" ou cujo fechamento manual expirava à meia-noite).
+  2. No frontend (`schedule.js`), a função `resolveStatus()` também pulava o cálculo da agenda semanal caso `normalized.enabled` fosse `false`, retornando o fallback manual (aberto).
+  3. No painel de administração (`admin.js`), salvar o formulário `operationSettingsForm` com todos os dias desmarcados não sincronizava `store_status` para "closed" nem forçava o fechamento do cardápio online.
+- **Solução Definitiva Implementada em Múltiplas Camadas**:
+  - **Banco de Dados (PostgreSQL / Supabase)**:
+    - Criada migration `20260918100000_tks_fix_zero_days_schedule.sql` e atualizada a função `public.tks_store_is_open()`.
+    - Adicionada verificação rigorosa `has_any_enabled_day`: se nenhum dia da semana estiver marcado como `enabled: true`, a função retorna estritamente `false` (loja fechada), exceto se houver um override manual explícito de abertura realizado **hoje** pelo administrador.
+    - Qualquer tentativa de criar pedido via RPC `tks_create_order` é sumariamente rejeitada pelo banco com exceção `P0001: O cardápio está fechado para novos pedidos.`.
+    - Atualizado o padrão de fallback de status ausente de `open` para `closed` (segurança fail-closed por padrão).
+  - **Lógica de Horários (`schedule.js`)**:
+    - Em `resolveStatus()`, adicionada verificação prioritária de `hasAnyDayEnabled`. Se todos os 7 dias estiverem desmarcados, retorna `{ mode: "closed", label: "Fechado", source: "schedule", reason: "Nenhum dia de funcionamento ativado" }`.
+    - O fechamento é imediato e não reabre automaticamente na virada do dia (meia-noite).
+  - **Painel Administrativo (`admin.js` & `admin.html`)**:
+    - Ao salvar o formulário de configurações com todos os dias desmarcados, o sistema automaticamente define `storeStatus` como fechado (`STORE_STATUS.closed`), grava no `localStorage` e sincroniza via Supabase `store_status`.
+    - Feedback visual aprimorado no texto explicativo e no status da agenda (`settingsScheduleStatus`), informando claramente que "Nenhum dia habilitado na agenda semanal. O cardápio está fechado para novos pedidos.".
+    - Atualizados fallbacks locais de inicialização de `store_status` de `STORE_STATUS.open` para `STORE_STATUS.closed`.
+  - **Cardápio Público (`app.js`)**:
+    - `DEFAULT_STORE_STATUS` ajustado para `{ mode: "closed", label: "Fechado" }`.
+    - Desativação imediata dos botões "Adicionar" (exibindo "Indisponível") e bloqueio no envio do pedido no client e no banco.
+  - **Cache Busting**:
+    - Atualizadas as tags de versão dos scripts em `index.html` e `admin.html` para `v=20260918-sched-v1`.
+- **Arquivos Alterados**:
+  - `schedule.js`
+  - `admin.js`
+  - `admin.html`
+  - `app.js`
+  - `index.html`
+  - `supabase-schema.sql`
+  - `supabase/migrations/20260918100000_tks_fix_zero_days_schedule.sql`
+  - `CHANGELOG.md`
+
+---
+
 ## [2026-09-08] — Redesign Estético do Cartão Pix & Correção de Cópia Multi-Camada
 
 ### ✨ Melhorias de UX & Design (Skills `emil-design-eng`, `frontend-design`, `impeccable`)

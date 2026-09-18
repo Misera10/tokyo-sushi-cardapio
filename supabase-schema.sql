@@ -466,6 +466,8 @@ declare
   status jsonb;
   today jsonb;
   previous jsonb;
+  has_any_enabled_day boolean := false;
+  manual_override boolean := false;
   current_date_key text := to_char(now() at time zone 'America/Sao_Paulo', 'YYYY-MM-DD');
   weekday integer := extract(dow from (now() at time zone 'America/Sao_Paulo'))::integer;
   current_time_value time := (now() at time zone 'America/Sao_Paulo')::time;
@@ -474,24 +476,49 @@ declare
 begin
   select value into schedule from public.tks_settings where key = 'store_schedule';
   select value into status from public.tks_settings where key = 'store_status';
-  if case
-    when status ? 'manualOverride' then coalesce((status->>'manualOverride')::boolean, false)
-      and (coalesce((schedule->>'enabled')::boolean, false) is not true or status->>'manualOverrideDate' = current_date_key)
-    when status ? 'manual_override' then coalesce((status->>'manual_override')::boolean, false)
-      and (coalesce((schedule->>'enabled')::boolean, false) is not true or status->>'manual_override_date' = current_date_key)
-    else lower(coalesce(status->>'mode', 'open')) in ('paused', 'closed')
-      and coalesce((schedule->>'enabled')::boolean, false) is not true
-  end then
-    return lower(coalesce(status->>'mode', 'open')) = 'open';
-  end if;
-  if coalesce((schedule->>'enabled')::boolean, false) is not true then
-    return lower(coalesce(status->>'mode', 'open')) = 'open';
+
+  -- 1. Verifica se existe pelo menos um dia habilitado na agenda semanal
+  select exists (
+    select 1
+    from jsonb_array_elements(coalesce(schedule->'weekly', '[]'::jsonb)) item(value)
+    where coalesce((value->>'enabled')::boolean, false) is true
+  ) into has_any_enabled_day;
+
+  -- 2. Se NENHUM dia da semana estiver habilitado (0 dias ativados):
+  -- O cardapio so pode abrir se houver um override manual explicito de abertura feito HOJE.
+  -- Em todos os outros casos, permanece FECHADO.
+  if not has_any_enabled_day then
+    return lower(coalesce(status->>'mode', 'closed')) = 'open'
+      and coalesce((status->>'manualOverride')::boolean, (status->>'manual_override')::boolean, false) is true
+      and coalesce(status->>'manualOverrideDate', status->>'manual_override_date', '') = current_date_key;
   end if;
 
+  -- 3. Se a agenda automatica estiver desativada (schedule.enabled = false),
+  -- mas existem dias na tabela: vale o controle manual (padrao fechado caso ausente).
+  if coalesce((schedule->>'enabled')::boolean, false) is not true then
+    return lower(coalesce(status->>'mode', 'closed')) = 'open';
+  end if;
+
+  -- 4. Agenda automatica ativada com dias configurados:
+  -- O fechamento/abertura manual pelo admin sobrescreve a agenda no dia em que foi acionado.
+  manual_override := case
+    when status ? 'manualOverride' then coalesce((status->>'manualOverride')::boolean, false)
+      and coalesce(status->>'manualOverrideDate', '') = current_date_key
+    when status ? 'manual_override' then coalesce((status->>'manual_override')::boolean, false)
+      and coalesce(status->>'manual_override_date', '') = current_date_key
+    else false
+  end;
+
+  if manual_override then
+    return lower(coalesce(status->>'mode', 'closed')) = 'open';
+  end if;
+
+  -- 5. Avaliacao da janela do dia atual e da virada da noite (dia anterior)
   select value into today
   from jsonb_array_elements(coalesce(schedule->'weekly', '[]'::jsonb)) item(value)
   where (value->>'day')::integer = weekday
   limit 1;
+
   select value into previous
   from jsonb_array_elements(coalesce(schedule->'weekly', '[]'::jsonb)) item(value)
   where (value->>'day')::integer = ((weekday + 6) % 7)
@@ -517,6 +544,7 @@ begin
       return true;
     end if;
   end if;
+
   return false;
 exception when others then
   return false;

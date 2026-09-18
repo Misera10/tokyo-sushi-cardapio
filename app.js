@@ -18,13 +18,13 @@ const normalizePublicProduct = item => ({
 });
 const STORE_STATUS_KEY = "tokyoStoreStatus";
 const CUSTOMER_MEMORY_KEY = "tokyoCustomerMemory";
-const DEFAULT_STORE_STATUS = { mode: "open", label: "Aberto", manualOverride: false };
+const DEFAULT_STORE_STATUS = { mode: "closed", label: "Fechado", manualOverride: false };
 function normalizeStoreStatus(value) {
   const source = value || {};
   const manualOverrideDate = /^\d{4}-\d{2}-\d{2}$/.test(String(source.manualOverrideDate || ""))
     ? String(source.manualOverrideDate)
     : "";
-  if (source.mode === "open") return { ...DEFAULT_STORE_STATUS, manualOverride: source.manualOverride === true, manualOverrideDate };
+  if (source.mode === "open") return { mode: "open", label: "Aberto", manualOverride: source.manualOverride === true, manualOverrideDate };
   return { mode: "closed", label: "Fechado", manualOverride: source.manualOverride !== false, manualOverrideDate };
 }
 const DEFAULT_STORE_SCHEDULE = window.TokyoSchedule?.normalize

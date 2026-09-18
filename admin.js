@@ -513,7 +513,7 @@ let promos = (JSON.parse(localStorage.getItem("tokyoPromos") || "[]")).map((prom
   id: promo.id || `promo-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`
 }));
 let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "null") || DEFAULT_COMPLEMENTS;
-let storeStatus = normalizeStoreStatus(JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") || STORE_STATUS.open);
+let storeStatus = normalizeStoreStatus(JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") || STORE_STATUS.closed);
 let cashSession = JSON.parse(localStorage.getItem("tokyoCashSession") || "null") || { open: false, opening: 0, transactions: [] };
 let operationSettings = { ...DEFAULT_OPERATION_SETTINGS, printerWidth: localStorage.getItem("tokyoPrinterWidth") || DEFAULT_OPERATION_SETTINGS.printerWidth, ...(JSON.parse(localStorage.getItem("tokyoOperationSettings") || "{}") || {}) };
 let expenses = JSON.parse(localStorage.getItem("tokyoExpenses") || "[]");
@@ -578,7 +578,7 @@ async function loadOnlineData() {
       window.TokyoDb.loadPromos(),
       window.TokyoDb.loadComplements(DEFAULT_COMPLEMENTS, { seed: true }).catch(() => complementGroups),
       window.TokyoDb.loadSetting("menu_groups", menuGroups).catch(() => menuGroups),
-      window.TokyoDb.loadSetting("store_status", STORE_STATUS.open).catch(() => storeStatus),
+      window.TokyoDb.loadSetting("store_status", STORE_STATUS.closed).catch(() => storeStatus),
       window.TokyoDb.loadCashSession().catch(() => window.TokyoDb.loadSetting("cash_session", cashSession).catch(() => cashSession)),
       window.TokyoDb.loadSetting("operation_settings", operationSettings).catch(() => operationSettings),
       window.TokyoDb.loadSetting("store_schedule", null).catch(() => null),
@@ -752,6 +752,13 @@ function saveOperationSettings() {
   runOnline(() => window.TokyoDb.saveSetting("pix_key", operationSettings.pixKey), "Falha ao salvar chave Pix online.");
   runOnline(() => window.TokyoDb.saveSetting("pix_beneficiary", operationSettings.pixBeneficiary), "Falha ao salvar beneficiário Pix online.");
   runOnline(() => window.TokyoDb.saveSetting("store_schedule", { enabled: operationSettings.scheduleEnabled, weekly: operationSettings.weeklySchedule }), "Falha ao salvar horário de funcionamento online.");
+
+  const hasAnyDayEnabled = operationSettings.weeklySchedule.some(day => day.enabled);
+  if (!hasAnyDayEnabled) {
+    storeStatus = { ...STORE_STATUS.closed, manualOverride: true, manualOverrideDate: localDateKey() };
+    localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
+    runOnline(() => window.TokyoDb.saveSetting("store_status", storeStatus), "Falha ao sincronizar status fechado online.");
+  }
 }
 
 function renderOperationSettings() {
@@ -790,13 +797,18 @@ function renderOperationSettings() {
   if (byId("settingsPrintStatus")) byId("settingsPrintStatus").textContent = operationSettings.printOnNewOrder ? "Impressão automática ativada para novos pedidos." : "Impressão automática desativada.";
   window.syncNotificationButton?.();
   if (byId("settingsScheduleStatus")) {
-    const manualOverride = storeStatus.manualOverride === true
-      && (effectiveStoreStatus().source === "manual" || !operationSettings.scheduleEnabled);
-    byId("settingsScheduleStatus").textContent = manualOverride
-      ? "Controle manual ativo. O cardápio fica neste estado até você clicar em Abrir."
-      : operationSettings.scheduleEnabled
-        ? "Modo automático ativo. Fechar pode sobrescrever a agenda; Abrir retoma o automático."
-        : "Modo manual ativo. A agenda está salva, mas não controla o status.";
+    const hasAnyDayEnabled = operationSettings.weeklySchedule.some(day => day.enabled);
+    if (!hasAnyDayEnabled) {
+      byId("settingsScheduleStatus").textContent = "Nenhum dia habilitado na agenda semanal. O cardápio está fechado para novos pedidos.";
+    } else {
+      const manualOverride = storeStatus.manualOverride === true
+        && (effectiveStoreStatus().source === "manual" || !operationSettings.scheduleEnabled);
+      byId("settingsScheduleStatus").textContent = manualOverride
+        ? "Controle manual ativo. O cardápio fica neste estado até você clicar em Abrir."
+        : operationSettings.scheduleEnabled
+          ? "Modo automático ativo. Fechar pode sobrescrever a agenda; Abrir retoma o automático."
+          : "Modo manual ativo. A agenda está salva, mas não controla o status.";
+    }
   }
 }
 
@@ -3267,6 +3279,12 @@ document.body.addEventListener("submit", event => {
       open: document.querySelector(`[data-schedule-open="${day.day}"]`)?.value || "",
       close: document.querySelector(`[data-schedule-close="${day.day}"]`)?.value || ""
     }));
+    const hasAnyDayEnabled = weeklySchedule.some(day => day.enabled);
+    if (!hasAnyDayEnabled) {
+      storeStatus = { ...STORE_STATUS.closed, manualOverride: true, manualOverrideDate: localDateKey() };
+      localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
+      runOnline(() => window.TokyoDb.saveSetting("store_status", storeStatus), "Falha ao sincronizar status fechado online.");
+    }
     operationSettings = normalizeOperationSettings({
       whatsappNumber: byId("settingsWhatsappNumber").value,
       pixKey: byId("settingsPixKey")?.value?.trim() || DEFAULT_OPERATION_SETTINGS.pixKey,
@@ -3292,7 +3310,7 @@ document.body.addEventListener("submit", event => {
     saveOperationSettings();
     renderStoreControls({ syncSettings: false });
     renderOperationSettings();
-    notify("Configurações operacionais salvas.", "success");
+    notify(hasAnyDayEnabled ? "Configurações operacionais salvas." : "Configurações salvas. Com todos os dias desmarcados, o cardápio está fechado.", "success");
     return;
   }
   if (event.target.id === "expenseForm") {
