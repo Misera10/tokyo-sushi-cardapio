@@ -487,19 +487,6 @@
         });
       }
     },
-    async deleteProduct(id) {
-      if (!enabled) return;
-      try {
-        await request(`${tables.products}?id=eq.${id}`, {
-          method: "PATCH",
-          body: { active: false, archived_at: new Date().toISOString() },
-          prefer: "return=minimal"
-        });
-      } catch (error) {
-        if (!/column|schema cache|archived_at/i.test(String(error?.message || error))) throw error;
-        await request(`${tables.products}?id=eq.${id}`, { method: "PATCH", body: { active: false }, prefer: "return=minimal" });
-      }
-    },
     async createOrder(order) {
       if (!enabled) return;
       return request("rpc/tks_create_order", {
@@ -638,6 +625,20 @@
         method: "POST",
         body: { key, value },
         prefer: "resolution=merge-duplicates,return=minimal"
+      });
+    },
+    async saveOperationSettingsBundle({ operationSettings, whatsappContact, pixKey, pixBeneficiary, storeSchedule }) {
+      if (!enabled) return;
+      await request("rpc/tks_save_operation_settings", {
+        method: "POST",
+        body: {
+          p_operation_settings: operationSettings || {},
+          p_whatsapp_contact: whatsappContact ?? "",
+          p_pix_key: pixKey ?? "",
+          p_pix_beneficiary: pixBeneficiary ?? "",
+          p_store_schedule: storeSchedule || { enabled: false, weekly: [] }
+        },
+        prefer: "return=minimal"
       });
     },
     async savePushSubscription(subscription) {

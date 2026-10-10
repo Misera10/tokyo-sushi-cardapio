@@ -1,3 +1,35 @@
+## 2026-10-10 — Edição de pedidos finalizados (baixa dada) e reabertura
+
+- **Edição de pedidos finalizados**: O administrador agora pode editar pedidos que já receberam baixa (`Finalizado`), corrigindo nome, telefone, itens, quantidades, adicionais, descontos, acréscimos e observações.
+- **Segurança e integridade no banco (RPC `tks_update_order`)**: Migration aplicada no Supabase permitindo a edição de pedidos em status `Finalizado`. Pedidos arquivados ou cancelados permanecem protegidos contra edição acidental.
+- **Sincronização de valores e troco**: Em pedidos em dinheiro com total recalculado acima do valor entregue original, o sistema atualiza com segurança o valor recebido e o troco sem rejeitar a edição.
+- **Reabertura de pedidos**: Adicionada a ação "Reabrir pedido" para pedidos finalizados, permitindo retorná-los ao status "Pronto" caso necessário.
+- **Busca rápida de finalizados**: Digitar o número ou nome do cliente na busca exibe diretamente a coluna "Saíram (busca)", permitindo localizar e editar qualquer pedido finalizado sem precisar trocar o filtro de status.
+- **Cache-busting**: Atualizado `admin.js?v=20261010-edit-v1` no painel administrativo.
+
+## 2026-09-27 — Auditoria completa de CRUDs e fluxos
+
+- Corrigida a persistência de produtos ao renomear grupos do cardápio.
+- O status `Publicado` dos grupos passa a controlar a exibição no cardápio público.
+- Categorias sem produtos disponíveis deixam de aparecer na navegação pública.
+- PDV passa a permitir escolher `Pago` ou `Não pago` antes de criar o pedido.
+- Cadastro, edição e exclusão de despesas só confirmam sucesso após resposta do Supabase.
+- Removida API de arquivamento de produto sem uso, consolidando o fluxo em `saveProduct`.
+- Liberada ao público somente a leitura de `menu_groups`, necessária para aplicar a publicação dos grupos sem expor outras configurações.
+- Atualizado cache busting/PWA para `20260927-audit-v3`.
+
+## 2026-09-27 — Correção de status e sincronização do cardápio
+
+- Corrigido o modo manual para respeitar Abrir/Fechar mesmo quando nenhum dia da agenda está habilitado.
+- Removido o fechamento implícito ao salvar configurações operacionais ou notificações.
+- Adicionada validação de horários antes de ativar a agenda automática.
+- Cardápio público passa a atualizar status e agenda do Supabase periodicamente e ao voltar ao app.
+- Adicionada migration corretiva do `tks_store_is_open()` e testes de regressão.
+- Salvamento das configurações operacionais passou a usar uma RPC transacional no Supabase.
+- Refresh concorrente de status agora é reenfileirado no cardápio e no admin, evitando janela temporária de estado antigo.
+- Fechamento feito em modo manual não vira override da agenda ao ativar o automático depois.
+- Novo service worker `sw-v20260927.js` para garantir atualização do PWA.
+
 # Changelog — Tokyo Sushi Cardápio & Painel Administrativo
 
 Todas as alterações notáveis, correções e atualizações deste projeto são documentadas neste arquivo.

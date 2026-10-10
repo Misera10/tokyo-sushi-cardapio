@@ -144,6 +144,7 @@
             <label>Cliente<input id="pdvCustomer" list="pdvCustomerSuggestions" autocomplete="off" placeholder="Comece a digitar o nome" required><datalist id="pdvCustomerSuggestions"></datalist></label>
             <label>Celular<input id="pdvPhone" list="pdvPhoneSuggestions" autocomplete="off" placeholder="(99) 99999-9999" required><datalist id="pdvPhoneSuggestions"></datalist></label>
             <label>Pagamento<select id="pdvPayment"><option>Pix</option><option>Cartão na retirada</option><option>Dinheiro</option></select></label>
+            <label>Status do pagamento<select id="pdvPaymentStatus"><option value="pending">Não pago</option><option value="paid">Pago</option></select></label>
           </div>
           <section class="pdv-product-picker" aria-labelledby="pdvProductPickerTitle">
             <div class="pdv-picker-head">
@@ -408,8 +409,8 @@
               <label class="settings-check compact"><input id="settingsPrintShowNotes" type="checkbox"><span>Observações</span></label>
               <label class="settings-check compact"><input id="settingsPrintShowTotals" type="checkbox"><span>Total do pedido</span></label>
             </div>
-            <label class="settings-check"><input id="settingsPrintOnNewOrder" type="checkbox"><span><strong>Imprimir automaticamente novos pedidos</strong><small>Com o Tokyo Print instalado e conectado, a comanda vai direto para a impressora padrão do Windows.</small></span></label>
-            <div class="settings-status" id="settingsPrintStatus">Impressão automática desativada.</div>
+            <label class="settings-check"><input id="settingsPrintOnNewOrder" type="checkbox" checked><span><strong>Imprimir automaticamente novos pedidos</strong><small>Com o Tokyo Print instalado e conectado, a comanda vai direto para a impressora padrão do Windows.</small></span></label>
+            <div class="settings-status" id="settingsPrintStatus">Impressão automática ativada para novos pedidos.</div>
             <button class="ghost" type="button" data-settings-action="test-print">Imprimir teste</button>
             <div class="agent-connect-box">
               <strong>Impressora deste notebook</strong>
@@ -426,7 +427,7 @@
           </article>
           <article class="settings-card schedule-settings-card">
             <div class="settings-card-head"><span class="section-kicker">04 · Horários</span><h2>Horário de funcionamento</h2><p>Defina quando a loja aceita retirada. O modo automático atualiza o painel e o cardápio pelo horário de Brasília.</p></div>
-            <label class="settings-check"><input id="settingsScheduleEnabled" type="checkbox"><span><strong>Usar horário automático</strong><small>A agenda controla o status pelo horário de Brasília. Se todos os dias estiverem desmarcados, o cardápio fica estritamente fechado e bloqueia pedidos.</small></span></label>
+            <label class="settings-check"><input id="settingsScheduleEnabled" type="checkbox"><span><strong>Usar horário automático</strong><small>Ligado: a agenda controla o status pelo horário de Brasília e zero dias habilitados mantém o cardápio fechado. Desligado: os botões Abrir e Fechar controlam o cardápio normalmente.</small></span></label>
             <div class="schedule-editor" role="group" aria-label="Agenda semanal da loja">
               <div class="schedule-head"><span>Dia</span><span>Abre</span><span>Fecha</span><span>Ação</span></div>
               <div class="schedule-row" data-schedule-row="0">
@@ -485,10 +486,10 @@
     </section>
   </main>
 
-  <script src="config.js?v=20260918-sched-v1"></script>
-  <script src="db.js?v=20260918-sched-v1"></script>
-  <script src="menu-data.js?v=20260918-sched-v1"></script>
-  <script src="schedule.js?v=20260918-sched-v1"></script>
-  <script src="admin.js?v=20260918-sched-v1"></script>
+  <script src="config.js?v=20260927-audit-v3"></script>
+  <script src="db.js?v=20260927-audit-v3"></script>
+  <script src="menu-data.js?v=20260927-audit-v3"></script>
+  <script src="schedule.js?v=20260927-audit-v3"></script>
+  <script src="admin.js?v=20261010-edit-v1"></script>
 </body>
 </html>

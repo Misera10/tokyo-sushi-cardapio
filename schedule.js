@@ -60,39 +60,25 @@
       : { ...sourceFallback, mode: "closed", label: "Fechado" };
     const current = currentParts(date);
 
-    const hasAnyDayEnabled = normalized.weekly.some(day => day.enabled);
-
-    // 1. Se todos os dias da semana estiverem desmarcados (0 dias habilitados na agenda):
-    // O cardapio so abre se houver abertura manual explicita realizada HOJE pelo admin.
-    if (!hasAnyDayEnabled) {
-      const explicitManualOpenToday = fallback.mode === "open"
-        && fallback.manualOverride === true
-        && fallback.manualOverrideDate === current.dateKey;
-
-      if (explicitManualOpenToday) {
-        return {
-          mode: "open",
-          label: "Aberto",
-          source: "manual",
-          reason: "Abertura manual temporária"
-        };
-      }
-
-      return {
-        mode: "closed",
-        label: "Fechado",
-        source: "schedule",
-        reason: "Nenhum dia de funcionamento ativado"
-      };
-    }
-
-    // 2. Se a agenda automatica estiver desligada ("Usar horário automático" desmarcado),
-    // mas existem dias marcados: vale o status manual salvo.
+    // 1. Com a agenda automática desligada, somente o controle manual decide o status.
+    // A quantidade de dias configurados não pode abrir nem fechar o cardápio nesse modo.
     if (!normalized.enabled) {
       return {
         ...fallback,
         source: "manual",
         reason: fallback.mode === "open" ? "Aberto manualmente" : "Fechado manualmente"
+      };
+    }
+
+    const hasAnyDayEnabled = normalized.weekly.some(day => day.enabled);
+
+    // 2. Com a agenda automática ativa, zero dias habilitados significa fechado.
+    if (!hasAnyDayEnabled) {
+      return {
+        mode: "closed",
+        label: "Fechado",
+        source: "schedule",
+        reason: "Nenhum dia de funcionamento ativado"
       };
     }
 

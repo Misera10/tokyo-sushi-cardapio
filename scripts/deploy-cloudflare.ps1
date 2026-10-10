@@ -18,7 +18,7 @@ $files = @(
   'index.html', 'admin.html', 'app.js', 'admin.js', 'db.js', 'config.js',
   'menu-data.js', 'schedule.js', 'styles.css', 'admin.css', 'icon.svg',
   'manifest.webmanifest', 'admin-manifest.webmanifest', '_headers',
-  'sw.js', 'sw-v20260908.js', 'sw-v20260817.js'
+  'sw.js', 'sw-v20260927.js', 'sw-v20260908.js', 'sw-v20260817.js'
 )
 
 foreach ($f in $files) {

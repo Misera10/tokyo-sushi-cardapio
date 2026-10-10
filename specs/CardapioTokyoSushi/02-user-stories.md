@@ -40,6 +40,9 @@ Como operador único da Tokyo Sushi, quero receber, aceitar, preparar, comunicar
 - Dado que preciso retirar um pedido da operação, quando clico em Cancelar, então ele sai das vendas válidas, permanece no histórico como cancelado e pode ser encontrado pelo filtro de cancelados do Financeiro.
 - Dado que chegam vários pedidos, então as ações ficam compactas e não ocupam mais espaço visual que os dados essenciais do pedido.
 - Dado que compartilho ou consulto o painel em público, quando aciono o olho do resumo, então os valores das métricas ficam mascarados e os nomes dos indicadores continuam visíveis.
+- Dado que um pedido já teve baixa dada (status Finalizado) e houve erro em itens, valores, observações ou dados do cliente, quando clico em Editar no card do pedido, então o editor abre permitindo corrigir itens, adicionais, descontos e valores com recálculo automático e atualização dos relatórios financeiros.
+- Dado que um pedido finalizado precisa voltar à operação de produção ou balcão, quando clico em Reabrir pedido, então ele retorna ao status Pronto.
+- Dado que pesquiso um pedido por número ou nome no campo de busca do painel, quando o pedido já foi finalizado, então a coluna "Saíram (busca)" é exibida imediatamente sem necessidade de alterar o filtro de status.
 
 ## História 8 — Consolidar compras e resultado financeiro
 
@@ -52,6 +55,13 @@ Como operador único da Tokyo Sushi, quero registrar compras e consultar o resul
 - Dado que seleciono um período, então vejo receita, despesas e lucro operacional, excluindo pedidos cancelados por padrão.
 - Dado que um dia possui pedidos válidos no cardápio, então o relatório usa a receita desses pedidos; se não possui, então pode usar a receita histórica importada para manter o histórico do Gestão Tóquio.
 - Dado que uma despesa importada foi corrigida, quando edito ou excluo o lançamento, então o resultado do Financeiro é atualizado sem alterar o banco de origem.
+- Dado que o banco online está ativo, quando cadastro, edito ou excluo uma compra, então o painel só confirma sucesso depois que o Supabase confirma a persistência; se a gravação falhar, o estado local anterior é preservado.
+
+### Gestão do cardápio
+
+- Dado que renomeio um grupo do cardápio, quando a alteração é salva, então os produtos desse grupo recebem a nova categoria também no banco e a mudança permanece após recarregar.
+- Dado que desmarco `Publicado` em um grupo, então o grupo e seus produtos deixam de aparecer no cardápio público sem apagar os produtos do painel administrativo.
+- Dado que uma categoria não possui nenhum produto publicável no dia/canal/estoque atual, então ela não aparece na navegação pública como categoria vazia.
 
 ### Edição operacional de pedidos
 
@@ -92,6 +102,10 @@ Como operador único da Tokyo Sushi, quero configurar os dias e horários de fun
 - Dado que existe uma sobreposição manual de Fechar, quando clico em Abrir, então a sobreposição é removida imediatamente; se eu não clicar, ela expira na virada do dia e a agenda automática volta a ser considerada.
 - Dado que um turno atravessa a meia-noite, quando configuro fechamento menor que abertura, então o sistema considera a janela noturna corretamente.
 - Dado que o modo automático está desligado, quando altero o status manual, então o comportamento atual permanece preservado.
+- Dado que o modo automático está desligado e nenhum dia da semana está habilitado, quando clico em Abrir ou Fechar, então somente o status manual define se o cardápio aceita pedidos.
+- Dado que fecho manualmente com o modo automático desligado e depois ativo a agenda no mesmo dia, então o fechamento manual anterior não vira uma sobreposição automática; a agenda passa a decidir o status.
+- Dado que o modo automático está ativo e nenhum dia da semana está habilitado, então o cardápio permanece fechado.
+- Dado que o modo automático está ativo, quando habilito um dia sem informar abertura e fechamento válidos e diferentes, então o sistema impede salvar e indica o dia que precisa ser corrigido.
 
 ## Direção de produto aprovada
 

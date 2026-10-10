@@ -16,7 +16,7 @@ const DEFAULT_OPERATION_SETTINGS = {
   pixBeneficiary: STORE.pixBeneficiary || "Fabiano R Fernandes",
   whatsappOrderTemplate: "Olá, {cliente}! 👋\n\nRecebemos seu pedido na {loja}.\n\n{resumo}\n\nA retirada é feita no balcão. Avisaremos por aqui assim que estiver pronto.\n\nObrigado por escolher a {loja}!",
   whatsappReadyTemplate: "Olá, {cliente}! 🍣\n\nSeu pedido #{pedido} da {loja} está pronto para retirada.\n\nPode retirar no balcão quando chegar. Se precisar falar com a gente, responda esta mensagem.\n\nObrigado!",
-  printOnNewOrder: false,
+  printOnNewOrder: true,
   printerWidth: "80",
   printerMargin: 3,
   printerLayout: {
@@ -204,7 +204,7 @@ async function showOrderNotification(order) {
 
 function setupAdminPwa() {
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw-v20260908.js")
+    navigator.serviceWorker.register("./sw-v20260927.js")
       .then(registration => { adminPushRegistration = registration; registration.update().catch(() => {}); })
       .catch(() => {});
   }
@@ -303,7 +303,7 @@ function setupAdminPwa() {
         try {
           await disableAdminDevicePush();
           operationSettings.notifyNewOrder = false;
-          saveOperationSettings();
+          if (!await saveOperationSettings()) throw new Error("Não foi possível sincronizar as configurações do painel.");
           renderOperationSettings();
           notify("Alertas desativados neste dispositivo.", "success");
         } catch (error) {
@@ -316,7 +316,7 @@ function setupAdminPwa() {
         await subscribeAdminDeviceToPush();
         if (!operationSettings.notifyNewOrder) {
           operationSettings.notifyNewOrder = true;
-          saveOperationSettings();
+          if (!await saveOperationSettings()) throw new Error("Não foi possível sincronizar as configurações do painel.");
           renderOperationSettings();
         }
         playOrderAlertSound();
@@ -332,7 +332,7 @@ function setupAdminPwa() {
       try {
         await subscribeAdminDeviceToPush();
         operationSettings.notifyNewOrder = true;
-        saveOperationSettings();
+        if (!await saveOperationSettings()) throw new Error("Não foi possível sincronizar as configurações do painel.");
         renderOperationSettings();
         playOrderAlertSound();
         notify("Alertas ativos neste dispositivo, inclusive com o app fechado.", "success");
@@ -538,6 +538,8 @@ let orderEditorPendingOptions = {};
 let ordersRefreshing = false;
 let orderRefreshTimer = null;
 let scheduleRefreshTimer = null;
+let storeControlsRefreshing = false;
+let storeControlsRefreshPending = false;
 let knownOrderIds = new Set();
 const previewParam = new URLSearchParams(window.location.search).get("preview");
 const LOCAL_PREVIEW_MODE = (
@@ -631,8 +633,8 @@ async function refreshOrders() {
   try {
     const nextOrders = (await window.TokyoDb.loadOrders()).map(normalizeOrder);
     if (!Array.isArray(nextOrders)) return;
-    const newOrder = nextOrders.find(order => !knownOrderIds.has(String(order.id)));
-    const hasNewOrder = Boolean(newOrder);
+    const newOrders = nextOrders.filter(order => !knownOrderIds.has(String(order.id)));
+    const hasNewOrder = newOrders.length > 0;
     orders = nextOrders;
     knownOrderIds = new Set(orders.map(order => String(order.id)));
     localStorage.setItem("tokyoOrders", JSON.stringify(orders));
@@ -648,9 +650,9 @@ async function refreshOrders() {
       navigator.vibrate?.([120, 60, 120]);
       if (operationSettings.notifyNewOrder) {
         playOrderAlertSound();
-        showOrderNotification(newOrder);
+        newOrders.forEach(order => showOrderNotification(order));
       }
-      if (operationSettings.printOnNewOrder) printOrder(newOrder, "kitchen");
+      if (operationSettings.printOnNewOrder) newOrders.forEach(order => printOrder(order, "kitchen"));
     }
   } catch (error) {
     console.warn("Falha ao atualizar pedidos em tempo real.", error);
@@ -659,15 +661,59 @@ async function refreshOrders() {
   }
 }
 
+async function refreshStoreControlsFromDb() {
+  if (!window.TokyoDb?.enabled || !window.TokyoDb.hasAdminSession()) {
+    renderStoreControls({ syncSettings: false });
+    return;
+  }
+  if (storeControlsRefreshing) {
+    storeControlsRefreshPending = true;
+    return;
+  }
+  storeControlsRefreshing = true;
+  try {
+    do {
+      storeControlsRefreshPending = false;
+      try {
+        const [loadedStatus, publicSchedule] = await Promise.all([
+          window.TokyoDb.loadSetting("store_status", storeStatus),
+          window.TokyoDb.loadSetting("store_schedule", null)
+        ]);
+        storeStatus = normalizeStoreStatus(loadedStatus);
+        if (publicSchedule?.weekly) {
+          operationSettings = normalizeOperationSettings({
+            ...operationSettings,
+            scheduleEnabled: publicSchedule.enabled === true,
+            weeklySchedule: publicSchedule.weekly
+          });
+        }
+        localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
+        localStorage.setItem("tokyoStoreSchedule", JSON.stringify({ enabled: operationSettings.scheduleEnabled, weekly: operationSettings.weeklySchedule }));
+      } catch (error) {
+        console.warn("Falha ao atualizar status e horário do cardápio no painel.", error);
+      }
+    } while (storeControlsRefreshPending);
+  } finally {
+    storeControlsRefreshing = false;
+    renderStoreControls({ syncSettings: false });
+  }
+}
+
 function startOrderRefresh() {
   if (orderRefreshTimer) window.clearInterval(orderRefreshTimer);
   if (scheduleRefreshTimer) window.clearInterval(scheduleRefreshTimer);
   orderRefreshTimer = window.setInterval(refreshOrders, 15000);
-  scheduleRefreshTimer = window.setInterval(() => renderStoreControls({ syncSettings: false }), 30000);
+  scheduleRefreshTimer = window.setInterval(refreshStoreControlsFromDb, 30000);
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) refreshOrders();
+    if (!document.hidden) {
+      refreshOrders();
+      refreshStoreControlsFromDb();
+    }
   });
-  window.addEventListener("focus", refreshOrders);
+  window.addEventListener("focus", () => {
+    refreshOrders();
+    refreshStoreControlsFromDb();
+  });
 }
 
 function saveMenu() {
@@ -732,7 +778,7 @@ function normalizeOperationSettings(value = {}) {
     whatsappReadyTemplate: String(settings.whatsappReadyTemplate || DEFAULT_OPERATION_SETTINGS.whatsappReadyTemplate) === legacyReadyTemplate
       ? DEFAULT_OPERATION_SETTINGS.whatsappReadyTemplate
       : String(settings.whatsappReadyTemplate || DEFAULT_OPERATION_SETTINGS.whatsappReadyTemplate),
-    printOnNewOrder: settings.printOnNewOrder === true,
+    printOnNewOrder: settings.printOnNewOrder !== false,
     printerWidth: ["58", "80"].includes(String(settings.printerWidth)) ? String(settings.printerWidth) : "80",
     printerMargin: Math.min(16, Math.max(0, Number(settings.printerMargin ?? 3))),
     printerLayout: Object.fromEntries(Object.entries(printerLayout).map(([key, enabled]) => [key, enabled === true])),
@@ -743,21 +789,39 @@ function normalizeOperationSettings(value = {}) {
   };
 }
 
-function saveOperationSettings() {
-  operationSettings = normalizeOperationSettings(operationSettings);
-  localStorage.setItem("tokyoOperationSettings", JSON.stringify(operationSettings));
-  localStorage.setItem("tokyoStoreSchedule", JSON.stringify({ enabled: operationSettings.scheduleEnabled, weekly: operationSettings.weeklySchedule }));
-  runOnline(() => window.TokyoDb.saveSetting("operation_settings", operationSettings), "Falha ao salvar configurações online.");
-  runOnline(() => window.TokyoDb.saveSetting("whatsapp_contact", operationSettings.whatsappNumber), "Falha ao salvar WhatsApp público online.");
-  runOnline(() => window.TokyoDb.saveSetting("pix_key", operationSettings.pixKey), "Falha ao salvar chave Pix online.");
-  runOnline(() => window.TokyoDb.saveSetting("pix_beneficiary", operationSettings.pixBeneficiary), "Falha ao salvar beneficiário Pix online.");
-  runOnline(() => window.TokyoDb.saveSetting("store_schedule", { enabled: operationSettings.scheduleEnabled, weekly: operationSettings.weeklySchedule }), "Falha ao salvar horário de funcionamento online.");
+function validateWeeklySchedule(weeklySchedule, scheduleEnabled) {
+  if (!scheduleEnabled) return null;
+  const invalidDay = weeklySchedule.find(day => day.enabled && (!day.open || !day.close || day.open === day.close));
+  if (!invalidDay) return null;
+  return `${invalidDay.label}: informe horários de abertura e fechamento diferentes.`;
+}
 
-  const hasAnyDayEnabled = operationSettings.weeklySchedule.some(day => day.enabled);
-  if (!hasAnyDayEnabled) {
-    storeStatus = { ...STORE_STATUS.closed, manualOverride: true, manualOverrideDate: localDateKey() };
-    localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
-    runOnline(() => window.TokyoDb.saveSetting("store_status", storeStatus), "Falha ao sincronizar status fechado online.");
+async function saveOperationSettings() {
+  const previousSettings = normalizeOperationSettings(JSON.parse(localStorage.getItem("tokyoOperationSettings") || "{}"));
+  operationSettings = normalizeOperationSettings(operationSettings);
+  const persistLocal = () => {
+    localStorage.setItem("tokyoOperationSettings", JSON.stringify(operationSettings));
+    localStorage.setItem("tokyoStoreSchedule", JSON.stringify({ enabled: operationSettings.scheduleEnabled, weekly: operationSettings.weeklySchedule }));
+  };
+  if (!window.TokyoDb?.enabled) {
+    persistLocal();
+    return true;
+  }
+  try {
+    await window.TokyoDb.saveOperationSettingsBundle({
+      operationSettings,
+      whatsappContact: operationSettings.whatsappNumber,
+      pixKey: operationSettings.pixKey,
+      pixBeneficiary: operationSettings.pixBeneficiary,
+      storeSchedule: { enabled: operationSettings.scheduleEnabled, weekly: operationSettings.weeklySchedule }
+    });
+    persistLocal();
+    return true;
+  } catch (error) {
+    operationSettings = previousSettings;
+    notify("As configurações não foram totalmente sincronizadas. Verifique a conexão e tente novamente.", "error");
+    console.warn("Falha ao salvar configurações operacionais online.", error);
+    return false;
   }
 }
 
@@ -798,16 +862,15 @@ function renderOperationSettings() {
   window.syncNotificationButton?.();
   if (byId("settingsScheduleStatus")) {
     const hasAnyDayEnabled = operationSettings.weeklySchedule.some(day => day.enabled);
-    if (!hasAnyDayEnabled) {
-      byId("settingsScheduleStatus").textContent = "Nenhum dia habilitado na agenda semanal. O cardápio está fechado para novos pedidos.";
+    if (!operationSettings.scheduleEnabled) {
+      byId("settingsScheduleStatus").textContent = "Modo manual ativo. A agenda está salva, mas não controla o status.";
+    } else if (!hasAnyDayEnabled) {
+      byId("settingsScheduleStatus").textContent = "Modo automático ativo, mas nenhum dia está habilitado. O cardápio permanece fechado.";
     } else {
-      const manualOverride = storeStatus.manualOverride === true
-        && (effectiveStoreStatus().source === "manual" || !operationSettings.scheduleEnabled);
+      const manualOverride = storeStatus.manualOverride === true && effectiveStoreStatus().source === "manual";
       byId("settingsScheduleStatus").textContent = manualOverride
-        ? "Controle manual ativo. O cardápio fica neste estado até você clicar em Abrir."
-        : operationSettings.scheduleEnabled
-          ? "Modo automático ativo. Fechar pode sobrescrever a agenda; Abrir retoma o automático."
-          : "Modo manual ativo. A agenda está salva, mas não controla o status.";
+        ? "Fechamento manual ativo até o fim do dia. Clique em Abrir para retomar a agenda automática."
+        : "Modo automático ativo. Fechar sobrescreve a agenda até o fim do dia; Abrir retoma o automático.";
     }
   }
 }
@@ -1274,7 +1337,7 @@ function paymentStatusLabel(order) {
   return order.paymentStatus === "paid" ? "Pago" : "Não pago";
 }
 
-const EDITABLE_ORDER_STATUSES = new Set(["Recebido", "Preparando", "Pronto"]);
+const EDITABLE_ORDER_STATUSES = new Set(["Recebido", "Preparando", "Pronto", "Finalizado"]);
 
 function canEditOrder(order) {
   return Boolean(order) && EDITABLE_ORDER_STATUSES.has(order.status) && !order.archivedAt && !order.archived_at;
@@ -1314,7 +1377,7 @@ function openOrderEditor(orderId) {
   const order = orders.find(item => String(item.id) === String(orderId));
   if (!order) return;
   if (!canEditOrder(order)) {
-    notify("Pedidos finalizados ou cancelados não podem ser editados.", "info");
+    notify("Pedidos arquivados ou cancelados não podem ser editados.", "info");
     return;
   }
   editingOrderId = String(order.id);
@@ -1415,12 +1478,16 @@ function orderEditorPricingTotals(order, subtotal = orderEditorSubtotal()) {
 
 function readOrderEditorPricing(form, order) {
   const current = orderEditorPricing(order);
+  const isCash = String(order?.payment || "").toLowerCase() === "dinheiro";
+  const rawReceived = form.elements.amountReceived?.value;
+  const parsedReceived = rawReceived != null && rawReceived !== "" ? Math.max(0, Number(rawReceived)) : null;
   return {
     ...current,
     discountType: form.elements.discountType?.value || "none",
     discountValue: Math.max(0, Number(form.elements.discountValue?.value || 0)),
     surchargeType: form.elements.surchargeType?.value || "none",
-    surchargeValue: Math.max(0, Number(form.elements.surchargeValue?.value || 0))
+    surchargeValue: Math.max(0, Number(form.elements.surchargeValue?.value || 0)),
+    ...(isCash && parsedReceived != null ? { amountReceived: parsedReceived } : {})
   };
 }
 
@@ -1431,13 +1498,15 @@ function renderOrderEditor(order) {
   const pricing = orderEditorPricingTotals(order, subtotal);
   const selectedDiscountType = pricing.discountType;
   const selectedSurchargeType = pricing.surchargeType;
+  const isCash = String(order?.payment || "").toLowerCase() === "dinheiro";
   return `
     <form class="order-editor" data-order-edit-form="${escapeHtml(order.id)}" aria-label="Editar pedido #${escapeHtml(order.id)}">
-      <div class="order-editor-head"><div><strong>Editar pedido #${escapeHtml(order.id)}</strong><small>O número e o status permanecem os mesmos.</small></div><button class="ghost" type="button" data-close-order-editor="${escapeHtml(order.id)}">Fechar</button></div>
+      <div class="order-editor-head"><div><strong>Editar pedido #${escapeHtml(order.id)}</strong><small>${order.status === "Finalizado" ? "Pedido finalizado (baixa dada). As correções atualizarão itens, valores e relatórios." : "O número e o status permanecem os mesmos."}</small></div><button class="ghost" type="button" data-close-order-editor="${escapeHtml(order.id)}">Fechar</button></div>
       <div class="order-editor-fields">
         <label>Nome<input id="order-editor-name-${escapeHtml(order.id)}" name="customerName" value="${escapeHtml(draft.customerName)}" required maxlength="120"></label>
         <label>Celular<input name="customerPhone" value="${escapeHtml(draft.customerPhone)}" required inputmode="tel" maxlength="15"></label>
         <div class="order-editor-readonly"><span>Pagamento</span><strong>${escapeHtml(order.payment || "-")}</strong><small>Altere Pago/Não pago no botão do pedido.</small></div>
+        ${isCash ? `<label>Valor em dinheiro entregue (R$)<input name="amountReceived" data-order-edit-adjustment="amountReceived" type="number" min="0" step="0.01" inputmode="decimal" value="${escapeHtml(pricing.amountReceived != null ? pricing.amountReceived : pricing.total)}" aria-label="Valor entregue pelo cliente"></label>` : ""}
         <label class="wide">Observações<textarea name="notes" maxlength="1000" rows="2" placeholder="Ex.: acrescentar um detalhe…">${escapeHtml(draft.notes)}</textarea></label>
       </div>
       <div class="order-editor-items">
@@ -1459,8 +1528,8 @@ function renderOrderEditor(order) {
         </div>
         ${pricing.couponDiscountAmount ? `<p class="order-editor-coupon">Cupom preservado: <strong>${escapeHtml(pricing.couponCode || "aplicado")}</strong> · - ${money(pricing.couponDiscountAmount)}</p>` : ""}
       </div>
-      <div class="order-editor-total"><span>Subtotal estimado <strong>${money(subtotal)}</strong></span>${pricing.discountAmount ? `<span>Desconto <strong>- ${money(pricing.discountAmount)}</strong></span>` : ""}${pricing.couponDiscountAmount ? `<span>Cupom <strong>- ${money(pricing.couponDiscountAmount)}</strong></span>` : ""}${pricing.surchargeAmount ? `<span>Acréscimo <strong>+ ${money(pricing.surchargeAmount)}</strong></span>` : ""}<span>Total estimado <strong>${money(pricing.total)}</strong></span></div>
-      <div class="order-editor-footer"><small>O banco recalcula os valores antes de salvar. Se o pedido já estiver pronto, reimprima a comanda se necessário.</small><button class="primary" type="submit">Salvar alterações</button></div>
+      <div class="order-editor-total"><span>Subtotal estimado <strong>${money(subtotal)}</strong></span>${pricing.discountAmount ? `<span>Desconto <strong>- ${money(pricing.discountAmount)}</strong></span>` : ""}${pricing.couponDiscountAmount ? `<span>Cupom <strong>- ${money(pricing.couponDiscountAmount)}</strong></span>` : ""}${pricing.surchargeAmount ? `<span>Acréscimo <strong>+ ${money(pricing.surchargeAmount)}</strong></span>` : ""}<span>Total estimado <strong>${money(pricing.total)}</strong></span>${isCash && pricing.amountReceived != null ? `<span>Troco estimado <strong>${money(pricing.change)}</strong></span>` : ""}</div>
+      <div class="order-editor-footer"><small>O banco recalcula os valores antes de salvar. Se o pedido já estiver pronto ou finalizado, o financeiro sincroniza automaticamente.</small><button class="primary" type="submit">Salvar alterações</button></div>
     </form>
   `;
 }
@@ -1494,7 +1563,7 @@ async function saveOrderEditor(order, form) {
     orderEditorDraft = null;
     orderEditorPendingOptions = {};
     renderAll();
-    notify(`Pedido #${order.id} atualizado com sucesso.${order.status === "Pronto" ? " Se necessário, reimprima a comanda." : ""}`, "success");
+    notify(`Pedido #${order.id} atualizado com sucesso.${order.status === "Finalizado" ? " Histórico e relatórios atualizados." : order.status === "Pronto" ? " Se necessário, reimprima a comanda." : ""}`, "success");
   } catch (error) {
     orders[index] = previous;
     saveOrders();
@@ -1519,6 +1588,9 @@ function nextStatuses(order) {
   ];
   if (status === "Pronto") return [
     { label: "Dar baixa", value: "Finalizado", kind: "primary", disabled: !isOrderPaid(order) }
+  ];
+  if (status === "Finalizado") return [
+    { label: "Reabrir pedido", value: "Pronto", kind: "ghost" }
   ];
   return [];
 }
@@ -1577,6 +1649,7 @@ function renderOrders({ preserveEditorViewport = false } = {}) {
     showActiveOrders.setAttribute("aria-hidden", String(!selectedStatus));
   }
 
+  const searchTerm = (byId("orderSearch")?.value || "").trim();
   const columns = [
     ["Recebidos", visibleOrders.filter(order => order.status === "Recebido")],
     ["Aceitos", visibleOrders.filter(order => order.status === "Preparando")],
@@ -1584,6 +1657,11 @@ function renderOrders({ preserveEditorViewport = false } = {}) {
   ];
   if (["Finalizado", "Cancelado"].includes(selectedStatus)) {
     columns.splice(0, columns.length, ["Histórico", visibleOrders.filter(order => order.status === selectedStatus).slice(0, 24)]);
+  } else if (searchTerm) {
+    const exitedMatches = visibleOrders.filter(order => order.status === "Finalizado");
+    if (exitedMatches.length > 0) {
+      columns.push(["Saíram (busca)", exitedMatches.slice(0, 12)]);
+    }
   }
 
   const exited = orders.filter(order => order.status === "Finalizado" && !order.archivedAt && !order.archived_at).length;
@@ -2693,14 +2771,20 @@ document.body.addEventListener("input", event => {
   const previousName = group.name;
   group[field] = field === "active" ? event.target.checked : event.target.value;
   if (field === "name" && previousName !== group.name) {
-    menu.forEach(item => { if (item.cat === previousName) item.cat = group.name; });
+    const renamedProducts = [];
+    menu.forEach(item => {
+      if (item.cat !== previousName) return;
+      item.cat = group.name;
+      renamedProducts.push(item);
+    });
     if (menuFilters.group === previousName) menuFilters.group = group.name;
     saveMenu();
+    renamedProducts.forEach(item => scheduleProductSave(item));
   }
   group.sortOrder = Number(group.sortOrder || 0);
   menuGroups = normalizeMenuGroups(menuGroups, menu);
   saveMenuGroups();
-  renderMenuGroups();
+  if (field === "active") renderMenuGroups();
 });
 
 function handleComplementInput(event) {
@@ -3174,9 +3258,10 @@ document.body.addEventListener("click", async event => {
   if (target.dataset.storeMode) {
     const selectedMode = target.dataset.storeMode;
     const previousStatus = storeStatus;
+    const closingOverride = selectedMode === "closed" && operationSettings.scheduleEnabled;
     storeStatus = selectedMode === "open"
       ? { ...STORE_STATUS.open, manualOverride: false, manualOverrideDate: "" }
-      : { ...STORE_STATUS.closed, manualOverride: true, manualOverrideDate: localDateKey() };
+      : { ...STORE_STATUS.closed, manualOverride: closingOverride, manualOverrideDate: closingOverride ? localDateKey() : "" };
     renderStoreControls();
     const saved = await saveStoreStatus();
     if (!saved) {
@@ -3185,7 +3270,12 @@ document.body.addEventListener("click", async event => {
       renderStoreControls();
       return;
     }
-    notify(`Cardápio ${selectedMode === "open" ? "aberto" : "fechado"} e sincronizado.`, "success");
+    const effectiveStatus = effectiveStoreStatus();
+    if (selectedMode === "open" && effectiveStatus.mode !== "open") {
+      notify("Controle manual removido. O horário automático mantém o cardápio fechado neste momento.", "info");
+    } else {
+      notify(`Cardápio ${effectiveStatus.mode === "open" ? "aberto" : "fechado"} e sincronizado.`, "success");
+    }
   }
   if (target.dataset.financeRange) {
     const range = target.dataset.financeRange;
@@ -3236,11 +3326,16 @@ document.body.addEventListener("click", async event => {
       byId("expenseForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
       byId("expenseDescription")?.focus();
     } else if (action === "delete" && expense && await askConfirm(`A compra "${expense.description}" será removida do resultado.`, { title: "Excluir compra?", confirmLabel: "Excluir compra" })) {
-      expenses = expenses.filter(item => String(item.id) !== String(expense.id));
-      localStorage.setItem("tokyoExpenses", JSON.stringify(expenses));
-      if (expense.id) runOnline(() => window.TokyoDb.deleteExpense(expense.id), "Falha ao excluir compra online.");
-      notify("Compra excluída do Financeiro.", "success");
-      renderReports();
+      try {
+        if (expense.id && window.TokyoDb?.enabled) await window.TokyoDb.deleteExpense(expense.id);
+        expenses = expenses.filter(item => String(item.id) !== String(expense.id));
+        localStorage.setItem("tokyoExpenses", JSON.stringify(expenses));
+        notify("Compra excluída do Financeiro.", "success");
+        renderReports();
+      } catch (error) {
+        notify("Não foi possível excluir a compra no banco. Nenhuma alteração foi aplicada.");
+        console.warn("Falha ao excluir compra online.", error);
+      }
     }
   }
   if (target.dataset.tabJump) document.querySelector(`[data-tab="${target.dataset.tabJump}"]`)?.click();
@@ -3270,7 +3365,7 @@ document.body.addEventListener("submit", async event => {
   }
 });
 
-document.body.addEventListener("submit", event => {
+document.body.addEventListener("submit", async event => {
   if (event.target.id === "operationSettingsForm") {
     event.preventDefault();
     const weeklySchedule = DEFAULT_WEEKLY_SCHEDULE.map(day => ({
@@ -3279,12 +3374,15 @@ document.body.addEventListener("submit", event => {
       open: document.querySelector(`[data-schedule-open="${day.day}"]`)?.value || "",
       close: document.querySelector(`[data-schedule-close="${day.day}"]`)?.value || ""
     }));
-    const hasAnyDayEnabled = weeklySchedule.some(day => day.enabled);
-    if (!hasAnyDayEnabled) {
-      storeStatus = { ...STORE_STATUS.closed, manualOverride: true, manualOverrideDate: localDateKey() };
-      localStorage.setItem(STORE_STATUS_KEY, JSON.stringify(storeStatus));
-      runOnline(() => window.TokyoDb.saveSetting("store_status", storeStatus), "Falha ao sincronizar status fechado online.");
+    const scheduleEnabled = byId("settingsScheduleEnabled").checked;
+    const scheduleError = validateWeeklySchedule(weeklySchedule, scheduleEnabled);
+    if (scheduleError) {
+      notify(scheduleError, "error");
+      const invalidDay = weeklySchedule.find(day => day.enabled && (!day.open || !day.close || day.open === day.close));
+      document.querySelector(`[data-schedule-open="${invalidDay?.day}"]`)?.focus();
+      return;
     }
+    const hasAnyDayEnabled = weeklySchedule.some(day => day.enabled);
     operationSettings = normalizeOperationSettings({
       whatsappNumber: byId("settingsWhatsappNumber").value,
       pixKey: byId("settingsPixKey")?.value?.trim() || DEFAULT_OPERATION_SETTINGS.pixKey,
@@ -3304,13 +3402,18 @@ document.body.addEventListener("submit", event => {
       printCopies: byId("settingsPrintCopies").value,
       printOnNewOrder: byId("settingsPrintOnNewOrder").checked,
       notifyNewOrder: byId("settingsNotifyNewOrder").checked,
-      scheduleEnabled: byId("settingsScheduleEnabled").checked,
+      scheduleEnabled,
       weeklySchedule
     });
-    saveOperationSettings();
+    if (!await saveOperationSettings()) return;
     renderStoreControls({ syncSettings: false });
     renderOperationSettings();
-    notify(hasAnyDayEnabled ? "Configurações operacionais salvas." : "Configurações salvas. Com todos os dias desmarcados, o cardápio está fechado.", "success");
+    const scheduleMessage = !scheduleEnabled
+      ? "Configurações salvas. O cardápio continua sob controle manual."
+      : hasAnyDayEnabled
+        ? "Configurações operacionais salvas."
+        : "Configurações salvas. Com o automático ativo e nenhum dia habilitado, o cardápio permanece fechado.";
+    notify(scheduleMessage, "success");
     return;
   }
   if (event.target.id === "expenseForm") {
@@ -3335,13 +3438,18 @@ document.body.addEventListener("submit", event => {
       return;
     }
     const index = expenses.findIndex(item => String(item.id) === String(id));
-    if (index >= 0) expenses[index] = expense;
-    else expenses.unshift(expense);
-    expenseEditingId = "";
-    localStorage.setItem("tokyoExpenses", JSON.stringify(expenses));
-    runOnline(() => window.TokyoDb.saveExpense(expense), "Falha ao salvar compra online.");
-    notify(index >= 0 ? "Compra atualizada." : "Compra adicionada.", "success");
-    renderReports({ preserveExpenseDraft: false });
+    try {
+      if (window.TokyoDb?.enabled) await window.TokyoDb.saveExpense(expense);
+      if (index >= 0) expenses[index] = expense;
+      else expenses.unshift(expense);
+      expenseEditingId = "";
+      localStorage.setItem("tokyoExpenses", JSON.stringify(expenses));
+      notify(index >= 0 ? "Compra atualizada." : "Compra adicionada.", "success");
+      renderReports({ preserveExpenseDraft: false });
+    } catch (error) {
+      notify("Não foi possível salvar a compra no banco. Nenhuma alteração foi aplicada.");
+      console.warn("Falha ao salvar compra online.", error);
+    }
     return;
   }
 });
@@ -3638,7 +3746,7 @@ byId("pdvForm").addEventListener("submit", async event => {
     customerName: byId("pdvCustomer").value.trim(),
     customerPhone: byId("pdvPhone").value.trim(),
     payment: byId("pdvPayment").value,
-    paymentStatus: "pending",
+    paymentStatus: byId("pdvPaymentStatus").value === "paid" ? "paid" : "pending",
     notes: byId("pdvNotes").value.trim(),
     subtotal: pricing.subtotal,
     discountAmount: pricing.discountAmount,
@@ -3669,6 +3777,7 @@ byId("pdvForm").addEventListener("submit", async event => {
       if (persisted?.items) order.items = persisted.items;
     }
     orders.unshift(order);
+    knownOrderIds.add(String(order.id));
     saveOrders();
     rememberPdvCustomer(order.customerName, order.customerPhone);
     pdvCart = [];
@@ -3679,6 +3788,7 @@ byId("pdvForm").addEventListener("submit", async event => {
     pdvAdjustmentMessage = "Digite um ajuste e confirme.";
     event.target.reset();
     renderAll();
+    if (operationSettings.printOnNewOrder) printOrder(order, "kitchen");
     notify("Pedido criado e enviado para a etapa Recebidos.", "success");
     document.querySelector('[data-tab="orders"]').click();
   } catch (error) {

@@ -16,6 +16,12 @@ const normalizePublicProduct = item => ({
   stockControlled: item?.stockControlled === true,
   stockQty: item?.stockQty == null || item?.stockQty === "" ? null : Number(item.stockQty)
 });
+const normalizePublicMenuGroups = groups => (Array.isArray(groups) ? groups : []).map((group, index) => ({
+  id: String(group?.id || `group-${index + 1}`),
+  name: String(group?.name || "Sem categoria"),
+  sortOrder: Number(group?.sortOrder ?? index),
+  active: group?.active !== false
+}));
 const STORE_STATUS_KEY = "tokyoStoreStatus";
 const CUSTOMER_MEMORY_KEY = "tokyoCustomerMemory";
 const DEFAULT_STORE_STATUS = { mode: "closed", label: "Fechado", manualOverride: false };
@@ -31,6 +37,7 @@ const DEFAULT_STORE_SCHEDULE = window.TokyoSchedule?.normalize
   ? window.TokyoSchedule.normalize({})
   : { enabled: false, weekly: [] };
 let MENU = normalizeMenuImages(JSON.parse(localStorage.getItem("tokyoMenu") || "null") || DEFAULT_MENU).map(normalizePublicProduct);
+let publicMenuGroups = normalizePublicMenuGroups(JSON.parse(localStorage.getItem("tokyoMenuGroups") || "null") || []);
 let complementGroups = JSON.parse(localStorage.getItem("tokyoComplements") || "null") || DEFAULT_COMPLEMENTS;
 let storeStatus = normalizeStoreStatus(JSON.parse(localStorage.getItem(STORE_STATUS_KEY) || "null") || DEFAULT_STORE_STATUS);
 let storeSchedule = window.TokyoSchedule?.normalize
@@ -59,6 +66,9 @@ let pendingProduct = null;
 let pendingOptions = {};
 let orderSubmitting = false;
 let scheduleStatusTimer = null;
+let storeAvailabilityRefreshRunning = false;
+let storeAvailabilityRefreshPending = false;
+let lastRenderedStoreMode = null;
 let cartTouchStartY = null;
 
 const byId = id => document.getElementById(id);
@@ -333,8 +343,17 @@ function setCart(lines) {
 async function loadMenuFromDb() {
   if (!window.TokyoDb?.enabled) return;
   try {
-    MENU = normalizeMenuImages(await window.TokyoDb.loadMenu(DEFAULT_MENU)).map(normalizePublicProduct);
+    const [loadedMenu, loadedGroups] = await Promise.all([
+      window.TokyoDb.loadMenu(DEFAULT_MENU),
+      window.TokyoDb.loadSetting("menu_groups", publicMenuGroups).catch(error => {
+        console.warn("Falha ao carregar grupos do cardápio. Usando cache local.", error);
+        return publicMenuGroups;
+      })
+    ]);
+    MENU = normalizeMenuImages(loadedMenu).map(normalizePublicProduct);
+    publicMenuGroups = normalizePublicMenuGroups(loadedGroups);
     localStorage.setItem("tokyoMenu", JSON.stringify(MENU));
+    localStorage.setItem("tokyoMenuGroups", JSON.stringify(publicMenuGroups));
   } catch (error) {
     console.warn("Falha ao carregar cardapio online. Usando cache local.", error);
   }
@@ -385,11 +404,34 @@ function isStoreOpen() {
 
 function renderStoreStatus() {
   const status = effectiveStoreStatus();
+  const changed = lastRenderedStoreMode !== null && lastRenderedStoreMode !== status.mode;
+  lastRenderedStoreMode = status.mode;
   const statusIsOpen = status.mode === "open";
   const statusLabel = statusIsOpen ? "Aberto" : "Fechado";
   byId("storeStatus").textContent = statusLabel;
   byId("storeStatusBadge").dataset.mode = statusIsOpen ? "open" : "closed";
   byId("storeStatusBadge").setAttribute("aria-label", `Status da loja: ${statusLabel}`);
+  return changed;
+}
+
+async function refreshStoreAvailabilityFromDb() {
+  if (storeAvailabilityRefreshRunning) {
+    storeAvailabilityRefreshPending = true;
+    return;
+  }
+  storeAvailabilityRefreshRunning = true;
+  try {
+    do {
+      storeAvailabilityRefreshPending = false;
+      await Promise.all([loadStoreStatusFromDb(), loadStoreScheduleFromDb()]);
+      if (renderStoreStatus()) {
+        renderMenu();
+        renderCart();
+      }
+    } while (storeAvailabilityRefreshPending);
+  } finally {
+    storeAvailabilityRefreshRunning = false;
+  }
 }
 
 async function saveOrder() {
@@ -460,15 +502,22 @@ function saveCart() {
   localStorage.setItem("sushiCart", JSON.stringify(cartLines()));
 }
 
+function isPublicGroupActive(category) {
+  const normalized = String(category || "Sem categoria").trim().toLocaleLowerCase("pt-BR");
+  const group = publicMenuGroups.find(item => String(item.name || "").trim().toLocaleLowerCase("pt-BR") === normalized);
+  return group?.active !== false;
+}
+
 function visibleProducts() {
   const term = searchTerm.toLowerCase();
   return MENU.filter(item => {
     const text = `${item.name} ${item.desc} ${item.cat}`.toLowerCase();
     const active = item.active !== false;
+    const publishedGroup = isPublicGroupActive(item.cat);
     const availableToday = (item.activeDays || [0, 1, 2, 3, 4, 5, 6]).includes(new Date().getDay());
     const availableForPickup = item.channels?.retirada !== false;
     const inStock = !item.stockControlled || Number(item.stockQty || 0) > 0;
-    return active && !item.archived && availableToday && availableForPickup && inStock && (searchTerm ? text.includes(term) : true);
+    return active && publishedGroup && !item.archived && availableToday && availableForPickup && inStock && (searchTerm ? text.includes(term) : true);
   });
 }
 
@@ -556,9 +605,10 @@ function categoryId(cat) {
 }
 
 function renderCategories() {
-  const cats = [...new Set(MENU.filter(item => item.active !== false).map(item => item.cat))];
+  const products = visibleProducts();
+  const cats = [...new Set(products.map(item => item.cat))];
   byId("categories").innerHTML = cats.map(cat => {
-    const count = MENU.filter(item => item.cat === cat && item.active !== false).length;
+    const count = products.filter(item => item.cat === cat).length;
     return `
       <button data-cat="${escapeHtml(cat)}">
         ${escapeHtml(cleanText(cat))} <span>${count}</span>
@@ -968,14 +1018,11 @@ async function init() {
   renderMenu();
   renderCart();
   if (scheduleStatusTimer) window.clearInterval(scheduleStatusTimer);
-  scheduleStatusTimer = window.setInterval(() => {
-    const previousMode = effectiveStoreStatus().mode;
-    renderStoreStatus();
-    if (previousMode !== effectiveStoreStatus().mode) {
-      renderMenu();
-      renderCart();
-    }
-  }, 30000);
+  scheduleStatusTimer = window.setInterval(refreshStoreAvailabilityFromDb, 30000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshStoreAvailabilityFromDb();
+  });
+  window.addEventListener("focus", refreshStoreAvailabilityFromDb);
 
   byId("menuSearch").addEventListener("input", event => {
     searchTerm = event.target.value.trim();
@@ -1092,14 +1139,14 @@ async function init() {
   });
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw-v20260908.js").then(reg => {
+    navigator.serviceWorker.register("sw-v20260927.js").then(reg => {
       reg.update().catch(() => {});
     }).catch(() => {});
   }
   if ("caches" in window) {
     caches.keys().then(keys => {
       keys.forEach(k => {
-        if (k !== "tokyo-sushi-v20260908-pix-v2") caches.delete(k);
+        if (k !== "tokyo-sushi-v20260927-audit-v3") caches.delete(k);
       });
     }).catch(() => {});
   }
