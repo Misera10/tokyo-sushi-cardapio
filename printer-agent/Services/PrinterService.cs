@@ -26,15 +26,18 @@ public sealed class PrinterService
 
     public void PrintTest(string printerName, string paperWidth, int fontSize, int marginLeft, int marginRight, int marginTop, int marginBottom)
     {
+        var is80Mm = string.Equals(paperWidth, "80", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(paperWidth);
+        var divider = is80Mm ? "----------------------------------------------" : "--------------------------------";
         var lines = new List<ReceiptLine>
         {
-            new("TOKYO SUSHI", true, false, Size: 10),
-            new("COMANDA DE TESTE", true, false, Size: 8),
-            new(""),
+            new("TOKYO SUSHI", true, Center: true, Size: 11),
+            new("COMANDA DE TESTE", true, Center: true, Size: 9),
+            new(divider, true, true, Size: 8),
             new("Impressão local configurada com sucesso."),
+            new($"Impressora: {printerName}"),
             new($"Papel configurado: {paperWidth} mm"),
             new($"Data: {DateTime.Now:dd/MM/yyyy HH:mm}"),
-            new(""),
+            new(divider, true, true, Size: 8),
             new("Se esta comanda saiu completa, o agente está pronto.", false, false, Size: 9)
         };
         PrintLines(printerName, lines, fontSize, marginLeft, marginRight, marginTop, marginBottom, 1, "Tokyo Sushi · Comanda de teste",
@@ -63,26 +66,27 @@ public sealed class PrinterService
     {
         var kitchen = string.Equals(request.PrintMode, "kitchen", StringComparison.OrdinalIgnoreCase);
         var customerName = string.IsNullOrWhiteSpace(request.CustomerName) ? "NÃO INFORMADO" : request.CustomerName.Trim().ToUpperInvariant();
+        var divider = string.Equals(request.PaperWidth, "58", StringComparison.OrdinalIgnoreCase) ? "--------------------------------" : "----------------------------------------------";
         var lines = new List<ReceiptLine>
         {
-            new("TOKYO SUSHI", true, false, Size: 11),
-            new(kitchen ? "COMANDA DE PRODUÇÃO" : "COMANDA DE RETIRADA", true, false, Size: 9),
+            new("TOKYO SUSHI", true, Center: true, Size: 11),
+            new(kitchen ? "COMANDA DE PRODUÇÃO" : "COMANDA DE RETIRADA", true, Center: true, Size: 9),
             new(""),
-            new($"PEDIDO #{request.OrderId}", true, false, Size: 13),
-            new($"DATA: {request.CreatedAt:dd/MM/yyyy HH:mm}", Size: 9)
+            new($"PEDIDO #{request.OrderId}", true, Center: true, Size: 13),
+            new($"DATA: {request.CreatedAt:dd/MM/yyyy HH:mm}", Center: true, Size: 9)
         };
 
         if (request.ShowCustomer)
             lines.Add(new($"CLIENTE: {customerName}", true, Center: true, Size: 10));
         if (!kitchen && request.ShowPhone && !string.IsNullOrWhiteSpace(request.CustomerPhone))
-            lines.Add(new($"WHATSAPP: {request.CustomerPhone}"));
+            lines.Add(new($"WHATSAPP: {request.CustomerPhone}", Size: 9));
         if (!kitchen && request.ShowPayment)
         {
             var payment = string.IsNullOrWhiteSpace(request.Payment) ? "NÃO INFORMADO" : request.Payment.Trim().ToUpperInvariant();
             lines.Add(new($"PAGAMENTO: {payment}", true, Size: 9));
         }
 
-        lines.Add(new("--------------------------------", true, true, Size: 8));
+        lines.Add(new(divider, true, true, Size: 8));
         for (var itemIndex = 0; itemIndex < request.Items.Count; itemIndex++)
         {
             var item = request.Items[itemIndex];
@@ -102,7 +106,7 @@ public sealed class PrinterService
         if (!kitchen && request.ShowTotals)
         {
             lines.Add(new(""));
-            lines.Add(new("--------------------------------", true, true, Size: 8));
+            lines.Add(new(divider, true, true, Size: 8));
             if (request.Subtotal is not null) lines.Add(new($"Subtotal: {FormatMoney(request.Subtotal.Value)}", Size: 9));
             if (request.Discount > 0) lines.Add(new($"Desconto: - {FormatMoney(request.Discount)}", Size: 9));
             if (request.CouponDiscount > 0) lines.Add(new($"Cupom: - {FormatMoney(request.CouponDiscount)}", Size: 9));
@@ -117,8 +121,8 @@ public sealed class PrinterService
             lines.Add(new($"*** {request.Notes.ReplaceLineEndings(" ").Trim().ToUpperInvariant()} ***", true, false, false, 9));
         }
         lines.Add(new(""));
-        lines.Add(new("--------------------------------", true, true, Size: 8));
-        lines.Add(new(kitchen ? "PRODUÇÃO" : "OBRIGADO!", true, false, Size: 8));
+        lines.Add(new(divider, true, true, Size: 8));
+        lines.Add(new(kitchen ? "PRODUÇÃO" : "OBRIGADO!", true, Center: true, Size: 8));
         return lines;
     }
 
@@ -142,39 +146,43 @@ public sealed class PrinterService
             // anti-aliased gray pixels. Keep receipt details solid black.
             graphics.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
             graphics.TextContrast = 0;
-            var dpiX = graphics.DpiX <= 0 ? 96f : graphics.DpiX;
-            var dpiY = graphics.DpiY <= 0 ? 96f : graphics.DpiY;
+            // GDI PrintDocument Graphics runs in GraphicsUnit.Display (1/100 inch).
+            // Calculate units per millimeter according to the actual active PageUnit.
+            var unitsPerInch = graphics.PageUnit switch
+            {
+                GraphicsUnit.Pixel => (graphics.DpiX <= 0 ? 203f : graphics.DpiX),
+                GraphicsUnit.Point => 72f,
+                GraphicsUnit.Inch => 1f,
+                GraphicsUnit.Millimeter => 25.4f,
+                _ => 100f // GraphicsUnit.Display is standard (1/100 inch)
+            };
+            var unitsPerMm = unitsPerInch / 25.4f;
+
             var clip = graphics.VisibleClipBounds;
-            var pageLeft = clip.Width > 0 ? clip.Left : 0;
-            var pageTop = clip.Height > 0 ? clip.Top : 0;
+            var pageLeft = clip.Width > 0 ? clip.Left : 0f;
+            var pageTop = clip.Height > 0 ? clip.Top : 0f;
             var pageWidth = clip.Width > 0 ? clip.Width : args.PageBounds.Width;
             var pageHeight = clip.Height > 0 ? clip.Height : args.PageBounds.Height;
-            var leftMargin = Math.Clamp(marginLeftMm, 0, 16) / 25.4f * dpiX;
-            var rightMargin = Math.Clamp(marginRightMm, 0, 16) / 25.4f * dpiX;
-            var top = Math.Clamp(marginTopMm, 0, 16) / 25.4f * dpiY;
-            var bottomMargin = Math.Clamp(marginBottomMm, 0, 16) / 25.4f * dpiY;
-            // Some Windows drivers report a virtual page wider than the
-            // physical printable area. Keep a conservative 46 mm column so
-            // the last characters remain inside the print head on compact
-            // rolls and on drivers with hidden right-side margins.
-            var safeWidth = 46f / 25.4f * dpiX;
-            // Largura fisica do rolo (configurada no admin/agente). Drivers
-            // termicos reportam pagina virtual mais larga que o rolo real;
-            // usar o papel configurado como referencia evita cabeçalho
-            // centralizado "andando" para a direita e sendo cortado.
-            var physicalWidth = paperWidthMm > 0 ? paperWidthMm / 25.4f * dpiX : pageWidth;
-            var centerX = pageLeft + physicalWidth / 2f;
-            var availableWidth = Math.Max(80f, physicalWidth - leftMargin - rightMargin);
-            var width = Math.Max(80f, Math.Min(availableWidth, safeWidth));
+
+            var leftMargin = Math.Clamp(marginLeftMm, 0, 16) * unitsPerMm;
+            var rightMargin = Math.Clamp(marginRightMm, 0, 16) * unitsPerMm;
+            var top = Math.Clamp(marginTopMm, 0, 16) * unitsPerMm;
+            var bottomMargin = Math.Clamp(marginBottomMm, 0, 16) * unitsPerMm;
+
+            // Physical print head width: 72 mm for 80 mm rolls (Epson TM-T20X/M352A), ~48 mm for 58 mm rolls.
+            var printableMm = paperWidthMm >= 80 ? 72f : (paperWidthMm > 0 ? Math.Max(46f, paperWidthMm - 8f) : 72f);
+            var maxPrintableWidth = printableMm * unitsPerMm;
+
+            // If the driver clip is narrower than the nominal print head, respect the driver's clip.
+            var driverClipWidth = clip.Width > 0 ? clip.Width : maxPrintableWidth;
+            var physicalPrintHeadWidth = Math.Min(driverClipWidth, maxPrintableWidth);
+
+            // Printable column after discounting left and right margins:
+            var width = Math.Max(40f, physicalPrintHeadWidth - leftMargin - rightMargin);
             var left = pageLeft + leftMargin;
-            // Center the header/footer in the same conservative printable
-            // column used by the items. Thermal drivers often expose a
-            // virtual page wider than the actual print head; centering in
-            // that virtual page is what pushed the header to the right.
+
             var centeredWidth = width;
-            // Coluna centralizada no CENTRO do papel fisico configurado
-            // (fallback: coluna ancorada a esquerda, comportamento antigo).
-            var centeredLeft = paperWidthMm > 0 ? centerX - width / 2f : left;
+            var centeredLeft = left;
             var y = pageTop + top;
             var bottom = pageTop + pageHeight - bottomMargin;
             var sizeScale = Math.Clamp(fontSize, 6, 14) / 9f;

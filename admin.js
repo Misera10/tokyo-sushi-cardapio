@@ -18,6 +18,7 @@ const DEFAULT_OPERATION_SETTINGS = {
   whatsappReadyTemplate: "Olá, {cliente}! 🍣\n\nSeu pedido #{pedido} da {loja} está pronto para retirada.\n\nPode retirar no balcão quando chegar. Se precisar falar com a gente, responda esta mensagem.\n\nObrigado!",
   printOnNewOrder: true,
   printerWidth: "80",
+  printerFontSize: 9,
   printerMargin: 3,
   printerLayout: {
     showCustomer: true,
@@ -780,6 +781,7 @@ function normalizeOperationSettings(value = {}) {
       : String(settings.whatsappReadyTemplate || DEFAULT_OPERATION_SETTINGS.whatsappReadyTemplate),
     printOnNewOrder: settings.printOnNewOrder !== false,
     printerWidth: ["58", "80"].includes(String(settings.printerWidth)) ? String(settings.printerWidth) : "80",
+    printerFontSize: Math.min(14, Math.max(6, Number(settings.printerFontSize || 9))),
     printerMargin: Math.min(16, Math.max(0, Number(settings.printerMargin ?? 3))),
     printerLayout: Object.fromEntries(Object.entries(printerLayout).map(([key, enabled]) => [key, enabled === true])),
     printCopies: Math.min(3, Math.max(1, Number(settings.printCopies || 1))),
@@ -833,6 +835,7 @@ function renderOperationSettings() {
     settingsWhatsappOrderTemplate: operationSettings.whatsappOrderTemplate,
     settingsWhatsappReadyTemplate: operationSettings.whatsappReadyTemplate,
     settingsPrinterWidth: operationSettings.printerWidth,
+    settingsPrinterFontSize: String(operationSettings.printerFontSize || 9),
     settingsPrinterMargin: String(operationSettings.printerMargin),
     settingsPrintCopies: String(operationSettings.printCopies)
   };
@@ -899,9 +902,9 @@ function renderPrintAgentStatus(message) {
   status.textContent = message || "Impressora local não detectada.";
 }
 
-async function connectPrintAgent() {
+async function connectPrintAgent({ silent = false } = {}) {
   const status = byId("settingsPrintAgentStatus");
-  if (status) status.textContent = "Detectando o Tokyo Print neste notebook...";
+  if (!silent && status) status.textContent = "Detectando o Tokyo Print neste notebook...";
   try {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 5000);
@@ -918,13 +921,13 @@ async function connectPrintAgent() {
     const activePrinter = printers.printers?.find(printer => printer.isDefault || printer.IsDefault) || printers.printers?.[0];
     const active = activePrinter?.name || activePrinter?.Name || "nenhuma";
     renderPrintAgentStatus(`Conectado · ${active}`);
-    notify("Tokyo Print conectado e pronto para receber pedidos.", "success");
+    if (!silent) notify("Tokyo Print conectado e pronto para receber pedidos.", "success");
   } catch (error) {
     const message = error.name === "AbortError"
       ? "O Tokyo Print não respondeu em 5 segundos. Abra o aplicativo neste notebook."
       : error.message || "Não foi possível conectar ao Tokyo Print.";
     renderPrintAgentStatus(message);
-    notify(message);
+    if (!silent) notify(message);
   }
 }
 
@@ -948,6 +951,7 @@ function mapOrderToPrintRequest(order, mode = "customer") {
     change: Number(order.changeAmount || 0),
     notes: order.notes || "",
     paperWidth: operationSettings.printerWidth || "80",
+    fontSize: Number(operationSettings.printerFontSize || 9),
     margin: Math.min(16, Math.max(0, Number(operationSettings.printerMargin ?? 3))),
     copies: Math.min(3, Math.max(1, Number(operationSettings.printCopies || 1))),
     showCustomer: kitchen ? true : operationSettings.printerLayout.showCustomer,
@@ -1211,6 +1215,8 @@ async function printOrder(order, mode = "customer") {
 function browserPrintOrder(order, mode = "customer") {
   const kitchen = mode === "kitchen";
   const width = operationSettings.printerWidth || "80";
+  const baseFontSize = Number(operationSettings.printerFontSize || 9);
+  const scale = baseFontSize / 9;
   const copies = Math.min(3, Math.max(1, Number(operationSettings.printCopies || 1)));
   const receipt = window.open("", "_blank", "width=420,height=720");
   if (!receipt) return notify("Permita pop-ups para imprimir a comanda.");
@@ -1219,16 +1225,51 @@ function browserPrintOrder(order, mode = "customer") {
     ${(item.options || []).map(option => `<small>+ ${option.qty}x ${escapeHtml(option.name)}</small>`).join("")}
   `).join("");
   const receiptMarkup = `
-    <div><h1>TOKYO SUSHI</h1><strong>${kitchen ? "COMANDA DE PRODUÇÃO" : "COMANDA DE RETIRADA"}</strong><h2>PEDIDO #${escapeHtml(order.id)}</h2><p>${escapeHtml(formatDate(order.createdAt))}</p></div>
-    <div class="line"></div><p><strong>CLIENTE:</strong> ${escapeHtml(order.customerName || "Cliente")}</p>${kitchen ? "" : `<p><strong>CELULAR:</strong> ${escapeHtml(order.customerPhone || "-")}</p><p><strong>PAGAMENTO:</strong> ${escapeHtml(order.payment || "-")}</p>`}
-    <div class="line"></div>${items}<div class="line"></div>
-    ${kitchen ? "" : `${order.subtotal != null ? `<p>Subtotal: ${money(order.subtotal)}</p>${Number(order.discountAmount || 0) ? `<p>Desconto: - ${money(order.discountAmount)}</p>` : ""}${Number(order.couponDiscountAmount || 0) ? `<p>Cupom: - ${money(order.couponDiscountAmount)}</p>` : ""}${Number(order.surchargeAmount || 0) ? `<p>Acréscimo: + ${money(order.surchargeAmount)}</p>` : ""}` : ""}<div class="total"><span>TOTAL</span><span>${money(order.total)}</span></div>${order.amountReceived != null ? `<p>Recebido: ${money(order.amountReceived)} · Troco: ${money(order.changeAmount || 0)}</p>` : ""}`}
+    <div class="center">
+      <h1>TOKYO SUSHI</h1>
+      <strong class="subtitle">${kitchen ? "COMANDA DE PRODUÇÃO" : "COMANDA DE RETIRADA"}</strong>
+      <h2>PEDIDO #${escapeHtml(order.id)}</h2>
+      <p class="date">DATA: ${escapeHtml(formatDate(order.createdAt))}</p>
+    </div>
+    <div class="line"></div>
+    <p class="center"><strong>CLIENTE:</strong> ${escapeHtml(order.customerName || "Cliente")}</p>
+    ${kitchen ? "" : `<p><strong>WHATSAPP:</strong> ${escapeHtml(order.customerPhone || "-")}</p><p><strong>PAGAMENTO:</strong> ${escapeHtml(order.payment || "-")}</p>`}
+    <div class="line"></div>
+    ${items}
+    <div class="line"></div>
+    ${kitchen ? "" : `${order.subtotal != null ? `<p>Subtotal: ${money(order.subtotal)}</p>${Number(order.discountAmount || 0) ? `<p>Desconto: - ${money(order.discountAmount)}</p>` : ""}${Number(order.couponDiscountAmount || 0) ? `<p>Cupom: - ${money(order.couponDiscountAmount)}</p>` : ""}${Number(order.surchargeAmount || 0) ? `<p>Acréscimo: + ${money(order.surchargeAmount)}</p>` : ""}` : ""}<div class="total"><span>TOTAL:</span><span>${money(order.total)}</span></div>${order.amountReceived != null ? `<p>Recebido: ${money(order.amountReceived)} · Troco: ${money(order.changeAmount || 0)}</p>` : ""}`}
     ${order.notes ? `<div class="notes"><strong>*** OBSERVAÇÕES ***</strong><br>*** ${escapeHtml(order.notes)} ***</div>` : ""}
-    <div class="line"></div><p>${kitchen ? "PRODUÇÃO" : "OBRIGADO!"}</p>
+    <div class="line"></div>
+    <p class="center footer">${kitchen ? "PRODUÇÃO" : "OBRIGADO!"}</p>
   `;
   const copiesMarkup = Array.from({ length: copies }, (_, index) => `${index ? '<div class="copy-break"></div>' : ""}${receiptMarkup}`).join("");
   receipt.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pedido ${escapeHtml(order.id)}</title><style>
-    @page{size:${width}mm auto;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000}body{width:${width}mm;padding:3mm;font:600 12px/1.3 Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}h1{font-size:17px;font-weight:700;margin:0 0 3px}h2{font-size:15px;font-weight:700;margin:5px 0}p{margin:0 0 6px}.center{text-align:center}.line{border-top:1px dashed #000;margin:8px 0}.item{display:flex;justify-content:space-between;gap:8px;margin:8px 0}.item strong{max-width:70%;font-weight:700}small{display:block;margin-left:10px;font-weight:600}.total{display:flex;justify-content:space-between;font-size:16px;font-weight:700}.notes{border:1px solid #000;padding:6px;margin-top:8px;font-weight:600}.copy-break{break-before:page;page-break-before:always}
+    @page { size: ${width}mm auto; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+    body {
+      width: ${width}mm;
+      padding: 3mm 5mm;
+      font: 400 ${baseFontSize}pt/1.3 Arial, Helvetica, sans-serif;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .center { text-align: center; }
+    h1 { font-size: ${Math.round(11 * scale)}pt; font-weight: 700; margin: 0 0 2px; text-align: center; }
+    .subtitle { display: block; font-size: ${Math.round(9 * scale)}pt; font-weight: 700; margin: 0 0 4px; text-align: center; }
+    h2 { font-size: ${Math.round(13 * scale)}pt; font-weight: 700; margin: 4px 0 2px; text-align: center; }
+    .date { font-size: ${Math.round(9 * scale)}pt; margin: 0 0 4px; text-align: center; }
+    p { margin: 0 0 4px; font-size: ${Math.round(9 * scale)}pt; }
+    .line { border-top: 1px dashed #000; margin: 6px 0; }
+    .item { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; font-size: ${Math.round(10 * scale)}pt; }
+    .item strong { max-width: 75%; font-weight: 700; }
+    small { display: block; margin-left: 8px; font-weight: 400; font-size: ${Math.round(9 * scale)}pt; }
+    .total { display: flex; justify-content: space-between; font-size: ${Math.round(12 * scale)}pt; font-weight: 700; margin: 6px 0; }
+    .notes { border: 1px solid #000; padding: 4px 6px; margin: 6px 0; font-weight: 700; font-size: ${Math.round(9 * scale)}pt; text-align: center; }
+    .footer { font-size: ${Math.round(8 * scale)}pt; font-weight: 700; margin-top: 4px; text-align: center; }
+    .copy-break { break-before: page; page-break-before: always; }
   </style></head><body>${copiesMarkup}</body></html>`);
   receipt.document.close();
   receipt.focus();
@@ -1501,7 +1542,7 @@ function renderOrderEditor(order) {
   const isCash = String(order?.payment || "").toLowerCase() === "dinheiro";
   return `
     <form class="order-editor" data-order-edit-form="${escapeHtml(order.id)}" aria-label="Editar pedido #${escapeHtml(order.id)}">
-      <div class="order-editor-head"><div><strong>Editar pedido #${escapeHtml(order.id)}</strong><small>${order.status === "Finalizado" ? "Pedido finalizado (baixa dada). As correções atualizarão itens, valores e relatórios." : "O número e o status permanecem os mesmos."}</small></div><button class="ghost" type="button" data-close-order-editor="${escapeHtml(order.id)}">Fechar</button></div>
+      <div class="order-editor-head"><div><strong>Editar pedido #${escapeHtml(order.id)}</strong><small>${order.status === "Finalizado" ? "Pedido finalizado (baixa dada). As correções atualizarão itens, valores e relatórios." : "O número e o status permanecem os mesmos."}</small></div><div style="display:flex;gap:6px;"><button class="ghost" type="button" data-print-order="${order.id}" data-print-mode="kitchen" title="Imprimir comanda de produção">Produção</button><button class="ghost" type="button" data-print-order="${order.id}" data-print-mode="customer" title="Imprimir comprovante do cliente">Comprovante</button><button class="ghost" type="button" data-close-order-editor="${escapeHtml(order.id)}">Fechar</button></div></div>
       <div class="order-editor-fields">
         <label>Nome<input id="order-editor-name-${escapeHtml(order.id)}" name="customerName" value="${escapeHtml(draft.customerName)}" required maxlength="120"></label>
         <label>Celular<input name="customerPhone" value="${escapeHtml(draft.customerPhone)}" required inputmode="tel" maxlength="15"></label>
@@ -1630,7 +1671,7 @@ function orderCard(order) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.9 9.9 0 0 0-8.45 15.09L2.4 21.6l4.62-1.16A9.95 9.95 0 1 0 12.04 2Zm0 2a7.95 7.95 0 0 1 6.72 12.2 7.93 7.93 0 0 1-10.93 2.32l-.38-.23-2.24.56.58-2.17-.25-.4A7.95 7.95 0 0 1 12.04 4Zm-3.05 3.7c-.18 0-.46.06-.7.33-.24.26-.92.9-.92 2.2s.94 2.55 1.07 2.73c.13.18 1.82 2.91 4.51 3.96 2.23.88 2.68.7 3.16.66.49-.05 1.57-.64 1.8-1.26.22-.62.22-1.15.15-1.26-.06-.11-.24-.18-.51-.31-.27-.13-1.57-.78-1.82-.87-.24-.09-.42-.13-.6.13-.18.27-.69.87-.85 1.04-.16.18-.31.2-.58.07-.27-.13-1.13-.42-2.15-1.33-.8-.71-1.34-1.59-1.49-1.86-.16-.27-.02-.42.12-.55.12-.12.27-.31.4-.47.13-.16.18-.27.27-.44.09-.18.05-.33-.02-.47-.07-.13-.6-1.45-.82-1.99-.22-.52-.44-.45-.6-.46h-.44Z"/></svg>
           WhatsApp
         </a>
-        <button class="action-btn ghost icon-action" data-print-order="${order.id}" data-print-dialog="true" data-print-mode="${order.status === "Pronto" ? "customer" : "kitchen"}" aria-label="${order.status === "Pronto" ? "Imprimir comprovante do cliente" : "Imprimir comanda de produção"}" title="${order.status === "Pronto" ? "Imprimir comprovante do cliente" : "Imprimir comanda de produção"}">
+        <button class="action-btn ghost icon-action" data-print-order="${order.id}" data-print-mode="${order.status === "Pronto" ? "customer" : "kitchen"}" aria-label="${order.status === "Pronto" ? "Imprimir comprovante do cliente" : "Imprimir comanda de produção"}" title="${order.status === "Pronto" ? "Imprimir comprovante do cliente" : "Imprimir comanda de produção"}">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7h1a3 3 0 0 1 3 3v6h-4v4H6v-4H2v-6a3 3 0 0 1 3-3h1Zm2-5v5h8V4H8Zm8 12H8v4h8v-4Zm3-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>
         </button>
       </div>
@@ -2187,7 +2228,7 @@ function flowOrderCard(order) {
       <div class="flow-order-actions">
         ${actions.map(action => `<button class="action-btn ${action.kind}${action.disabled ? " requires-payment" : ""}" data-quick-status="${order.id}:${action.value}"${action.disabled ? ` aria-disabled="true" title="Marque como pago para dar baixa"` : ""}>${action.label}</button>`).join("")}
         ${order.status === "Pronto" ? `<button class="action-btn danger" data-archive-finance-order="${escapeHtml(order.id)}">Excluir</button>` : ""}
-        <button class="action-btn ghost" data-print-order="${order.id}" data-print-dialog="true" data-print-mode="${order.status === "Pronto" ? "customer" : "kitchen"}">${order.status === "Pronto" ? "Comprovante" : "Produção"}</button>
+        <button class="action-btn ghost" data-print-order="${order.id}" data-print-mode="${order.status === "Pronto" ? "customer" : "kitchen"}">${order.status === "Pronto" ? "Comprovante" : "Produção"}</button>
       </div>
     </article>
   `;
@@ -2219,7 +2260,7 @@ function renderKds() {
       <small>${escapeHtml(formatDate(order.createdAt))} · ${escapeHtml(statusLabel(order.status))}</small>
       <ul>${order.items.map(item => `<li><strong>${item.qty}x</strong> ${escapeHtml(item.name)}${(item.options || []).length ? `<small>${item.options.map(option => ` + ${option.qty}x ${escapeHtml(option.name)}`).join("<br>")}</small>` : ""}</li>`).join("")}</ul>
       ${order.notes ? `<p><strong>Observação:</strong> ${escapeHtml(order.notes)}</p>` : ""}
-      <div class="actions"><button class="primary" data-quick-status="${order.id}:${order.status === "Recebido" ? "Preparando" : "Pronto"}">${order.status === "Recebido" ? "Aceitar e iniciar" : "Marcar pronto"}</button><button class="ghost" data-print-order="${order.id}" data-print-dialog="true" data-print-mode="kitchen">Imprimir produção</button></div>
+      <div class="actions"><button class="primary" data-quick-status="${order.id}:${order.status === "Recebido" ? "Preparando" : "Pronto"}">${order.status === "Recebido" ? "Aceitar e iniciar" : "Marcar pronto"}</button><button class="ghost" data-print-order="${order.id}" data-print-mode="kitchen">Imprimir produção</button></div>
     </article>
   `).join("") || `<p>Nenhum pedido aguardando preparo.</p>`;
 }
@@ -3390,6 +3431,7 @@ document.body.addEventListener("submit", async event => {
       whatsappOrderTemplate: byId("settingsWhatsappOrderTemplate").value,
       whatsappReadyTemplate: byId("settingsWhatsappReadyTemplate").value,
       printerWidth: byId("settingsPrinterWidth").value,
+      printerFontSize: Number(byId("settingsPrinterFontSize")?.value || 9),
       printerMargin: byId("settingsPrinterMargin").value,
       printerLayout: {
         showCustomer: byId("settingsPrintShowCustomer").checked,
@@ -3405,6 +3447,11 @@ document.body.addEventListener("submit", async event => {
       scheduleEnabled,
       weeklySchedule
     });
+    if (byId("settingsPrintAgentKey")) {
+      const keyVal = byId("settingsPrintAgentKey").value.trim();
+      if (keyVal) localStorage.setItem(PRINT_AGENT_KEY_STORAGE, keyVal);
+      else localStorage.removeItem(PRINT_AGENT_KEY_STORAGE);
+    }
     if (!await saveOperationSettings()) return;
     renderStoreControls({ syncSettings: false });
     renderOperationSettings();
@@ -3914,6 +3961,7 @@ async function unlockAdmin() {
   await ensureAdminPushSubscription();
   refreshPushSubscriptionState();
   renderAll();
+  connectPrintAgent({ silent: true }).catch(() => {});
   startOrderRefresh();
   return true;
 }
