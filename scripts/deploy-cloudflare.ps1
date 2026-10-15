@@ -31,7 +31,18 @@ if (Test-Path assets) {
   Copy-Item -Path assets -Destination dist/assets -Recurse
 }
 
+if (-not $env:CLOUDFLARE_API_TOKEN) {
+  $tokenFile = "F:\EstudioFernandes\API\API CloudeFlare.txt"
+  if (Test-Path $tokenFile) {
+    $found = (Get-Content $tokenFile | Where-Object { $_.Trim() -like 'cfat_*' } | Select-Object -First 1)
+    if ($found) {
+      $env:CLOUDFLARE_API_TOKEN = $found.Trim()
+      $env:CLOUDFLARE_ACCOUNT_ID = "3e69b47ead138eced35a56bc3934b463"
+    }
+  }
+}
+
 Write-Host "Publicando no Cloudflare Pages (projeto: $ProjectName)..." -ForegroundColor Cyan
-npx wrangler pages deploy dist --project-name=$ProjectName --commit-dirty=true
+npx wrangler pages deploy dist --project-name=$ProjectName --branch=main --commit-dirty=true
 
 Write-Host "Deploy finalizado com sucesso!" -ForegroundColor Green
