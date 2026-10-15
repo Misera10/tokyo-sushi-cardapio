@@ -487,6 +487,13 @@
         });
       }
     },
+    async deleteProduct(id) {
+      if (!enabled) return;
+      await request(`${tables.products}?id=eq.${id}`, {
+        method: "DELETE",
+        prefer: "return=minimal"
+      });
+    },
     async createOrder(order) {
       if (!enabled) return;
       return request("rpc/tks_create_order", {

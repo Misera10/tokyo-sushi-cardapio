@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
-    <link rel="stylesheet" href="admin.css?v=20260908-pix-v2">
+    <link rel="stylesheet" href="admin.css?v=20261015-menu-crud">
 </head>
 <body class="admin-locked">
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
@@ -26,6 +26,193 @@
       </div>
     </section>
   </div>
+
+  <!-- Modais de Produto e Categorias do Cardápio -->
+  <div class="modal-overlay" id="productModalOverlay" hidden>
+    <div class="modal-dialog product-modal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+      <div class="modal-header">
+        <div>
+          <span class="dialog-kicker">Cardápio · Produto</span>
+          <h2 id="productModalTitle">Novo item</h2>
+        </div>
+        <button class="modal-close" id="closeProductModal" type="button" aria-label="Fechar modal">&times;</button>
+      </div>
+      <form id="productModalForm" novalidate>
+        <input type="hidden" id="prodEditId">
+        
+        <div class="modal-body">
+          <div class="form-section">
+            <span class="form-section-title">1. Informações Principais</span>
+            <div class="form-grid-2">
+              <label class="form-field">
+                <span>Nome do item *</span>
+                <input id="prodName" required placeholder="Ex.: Combo Especial 30 Peças" autocomplete="off">
+              </label>
+              <label class="form-field">
+                <span class="field-label-row">
+                  <span>Categoria / Grupo *</span>
+                  <button type="button" class="link-btn" id="prodQuickAddGroup">+ Nova categoria</button>
+                </span>
+                <select id="prodCategory" required></select>
+              </label>
+            </div>
+            <div class="form-grid-2">
+              <label class="form-field">
+                <span>Código interno / SKU <small>(opcional)</small></span>
+                <input id="prodInternalCode" placeholder="Ex.: CMB-01" autocomplete="off">
+              </label>
+              <label class="form-field">
+                <span>Tags <small>(separadas por vírgula)</small></span>
+                <input id="prodTags" placeholder="Ex.: salmão, promoção, combo" autocomplete="off">
+              </label>
+            </div>
+            <label class="form-field full-width">
+              <span>Descrição dos ingredientes / detalhes</span>
+              <textarea id="prodDesc" rows="2" placeholder="Ex.: 10 sashimis de salmão fresco, 10 uramakis filadélfia e 10 hossomakis..."></textarea>
+            </label>
+          </div>
+
+          <div class="form-section promo-highlight-section">
+            <span class="form-section-title">2. Preços & Promoção Relâmpago</span>
+            <div class="form-grid-4">
+              <label class="form-field highlight-field">
+                <span>Preço de venda (R$) *</span>
+                <input id="prodPrice" type="number" min="0" step="0.01" required placeholder="0,00">
+              </label>
+              <label class="form-field">
+                <span>Preço riscado / De (R$)</span>
+                <input id="prodStrikePrice" type="number" min="0" step="0.01" placeholder="Ex.: 59,90">
+              </label>
+              <label class="form-field">
+                <span>A partir de (R$)</span>
+                <input id="prodFromPrice" type="number" min="0" step="0.01" placeholder="0,00">
+              </label>
+              <label class="form-field">
+                <span>Custo (R$)</span>
+                <input id="prodCost" type="number" min="0" step="0.01" placeholder="0,00">
+              </label>
+            </div>
+            <div class="form-checks-row">
+              <label class="check-box-badge">
+                <input type="checkbox" id="prodBadgePromo">
+                <span>🔥 Etiqueta Promoção</span>
+              </label>
+              <label class="check-box-badge">
+                <input type="checkbox" id="prodHighlight">
+                <span>⭐ Destaque no topo</span>
+              </label>
+              <label class="check-box-badge">
+                <input type="checkbox" id="prodBadgeBestSeller">
+                <span>👑 Mais vendido</span>
+              </label>
+              <label class="check-box-badge">
+                <input type="checkbox" id="prodBadgeNew">
+                <span>✨ Novidade</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <span class="form-section-title">3. Foto do Item</span>
+            <div class="product-media-grid">
+              <div class="product-media-preview" id="prodImagePreview">
+                <div class="preview-placeholder">Sem foto</div>
+              </div>
+              <div class="product-media-inputs">
+                <label class="form-field">
+                  <span>URL da imagem principal</span>
+                  <input id="prodImage" placeholder="https://... ou caminho da imagem" autocomplete="off">
+                </label>
+                <label class="form-field">
+                  <span>Fotos adicionais <small>(uma URL por linha, até 4)</small></span>
+                  <textarea id="prodSecondaryImages" rows="2" placeholder="https://..."></textarea>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <span class="form-section-title">4. Canais, Disponibilidade & Estoque</span>
+            <div class="form-grid-3">
+              <div class="form-checks-col">
+                <strong>Canais ativos:</strong>
+                <label class="check-line"><input type="checkbox" id="prodChannelRetirada" checked> Retirada</label>
+                <label class="check-line"><input type="checkbox" id="prodChannelDelivery" checked> Delivery</label>
+                <label class="check-line"><input type="checkbox" id="prodChannelMesa" checked> Mesa / Salão</label>
+              </div>
+              <div class="form-checks-col">
+                <strong>Status no cardápio:</strong>
+                <label class="check-line"><input type="checkbox" id="prodActive" checked> Publicado e visível</label>
+              </div>
+              <div class="form-checks-col">
+                <strong>Controle de estoque:</strong>
+                <label class="check-line"><input type="checkbox" id="prodStockControlled"> Controlar estoque</label>
+                <label class="form-field">
+                  <span>Quantidade</span>
+                  <input id="prodStockQty" type="number" min="0" step="1" placeholder="Ilimitado">
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <div class="modal-footer-left">
+            <button class="danger" id="prodDeleteBtn" type="button" hidden>Excluir item definitivamente</button>
+          </div>
+          <div class="modal-footer-right">
+            <button class="ghost" id="prodCancelBtn" type="button">Cancelar</button>
+            <button class="primary" id="prodSaveBtn" type="submit">Salvar item</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="categoryModalOverlay" hidden>
+    <div class="modal-dialog category-modal" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle">
+      <div class="modal-header">
+        <div>
+          <span class="dialog-kicker">Cardápio · Organização</span>
+          <h2 id="categoryModalTitle">Gerenciar categorias</h2>
+        </div>
+        <button class="modal-close" id="closeCategoryModal" type="button" aria-label="Fechar modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form class="category-create-box" id="categoryForm">
+          <input type="hidden" id="catEditIndex" value="-1">
+          <div class="category-inputs-row">
+            <label class="form-field">
+              <span>Nome da categoria *</span>
+              <input id="catName" required placeholder="Ex.: Promoção Relâmpago, Combos, Entradas" autocomplete="off">
+            </label>
+            <label class="form-field">
+              <span>Descrição / Subtítulo <small>(opcional)</small></span>
+              <input id="catDescription" placeholder="Ex.: Ofertas especiais por tempo limitado" autocomplete="off">
+            </label>
+            <label class="check-line-inline">
+              <input type="checkbox" id="catActive" checked>
+              <span>Publicada</span>
+            </label>
+            <div class="cat-form-btns">
+              <button class="primary" id="catSaveBtn" type="submit">Salvar categoria</button>
+              <button class="ghost" id="catCancelEditBtn" type="button" hidden>Cancelar</button>
+            </div>
+          </div>
+        </form>
+
+        <div class="category-list-section">
+          <h3>Categorias cadastradas</h3>
+          <p class="category-list-hint">A ordem aqui define a ordem das abas e seções no cardápio dos clientes. Use as setas para mover.</p>
+          <div class="category-items-list" id="categoryItemsList"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="ghost" id="closeCategoryModalBottom" type="button">Concluir</button>
+      </div>
+    </div>
+  </div>
+
   <!--
     THESIS: Um painel de balcão que lê como uma faixa de comandas organizadas, não como uma planilha genérica.
     OWN-WORLD: Superfícies brancas e neutras, plum como assinatura, carimbo dourado e verde de operação em uma linguagem de ticket japonês.
@@ -251,24 +438,20 @@
       <div class="panel-head">
         <div>
           <h1>Cardápio</h1>
-          <p>Organize grupos, itens, adicionais, disponibilidade e estoque em um só lugar.</p>
+          <p>Organize categorias, produtos, promoções relâmpago, preços e disponibilidade.</p>
         </div>
         <div class="actions">
           <button class="ghost" id="resetMenu">Restaurar original</button>
-          <button class="ghost" id="addMenuGroup">Novo grupo</button>
-          <button class="primary" id="addProduct">Novo item</button>
+          <button class="ghost" id="openCategoryManagerBtn">Gerenciar categorias</button>
+          <button class="primary" id="addProduct">+ Novo item</button>
         </div>
       </div>
       <div class="menu-toolbar" aria-label="Filtros do cardápio">
         <label><span>Buscar item</span><input id="menuSearch" placeholder="Nome, código ou tag" autocomplete="off"></label>
-        <label><span>Grupo</span><select id="menuGroupFilter"><option value="">Todos os grupos</option></select></label>
-        <label><span>Status</span><select id="menuStatusFilter"><option value="all">Todos</option><option value="active">Publicados</option><option value="inactive">Pausados</option><option value="archived">Arquivados</option></select></label>
-        <label><span>Ordenar</span><select id="menuSort"><option value="group">Ordem do cardápio</option><option value="name">Nome</option><option value="priceAsc">Menor preço</option><option value="priceDesc">Maior preço</option></select></label>
+        <label><span>Categoria</span><select id="menuGroupFilter"><option value="">Todas as categorias</option></select></label>
+        <label><span>Status</span><select id="menuStatusFilter"><option value="all">Todos</option><option value="active">Publicados</option><option value="inactive">Pausados</option></select></label>
+        <label><span>Ordenar</span><select id="menuSort"><option value="group">Ordem das categorias</option><option value="name">Nome (A-Z)</option><option value="priceAsc">Menor preço</option><option value="priceDesc">Maior preço</option></select></label>
       </div>
-      <details class="menu-group-manager">
-        <summary>Gerenciar grupos e categorias</summary>
-        <div id="menuGroupEditor"></div>
-      </details>
       <div class="menu-editor" id="menuEditor"></div>
     </section>
 
@@ -488,9 +671,9 @@
   </main>
 
   <script src="config.js?v=20260927-audit-v3"></script>
-  <script src="db.js?v=20260927-audit-v3"></script>
+  <script src="db.js?v=20261015-menu-crud"></script>
   <script src="menu-data.js?v=20260927-audit-v3"></script>
   <script src="schedule.js?v=20260927-audit-v3"></script>
-  <script src="admin.js?v=20261010-edit-v1"></script>
+  <script src="admin.js?v=20261015-menu-crud"></script>
 </body>
 </html>

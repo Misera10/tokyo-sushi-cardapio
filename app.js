@@ -604,9 +604,18 @@ function categoryId(cat) {
   return `cat-${cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")}`;
 }
 
+function getOrderedCategories(products) {
+  const groupOrder = new Map((publicMenuGroups || []).map((g, idx) => [String(g.name || "").toLowerCase(), idx]));
+  return [...new Set(products.map(item => item.cat))].sort((a, b) => {
+    const orderA = groupOrder.has(String(a).toLowerCase()) ? groupOrder.get(String(a).toLowerCase()) : 999;
+    const orderB = groupOrder.has(String(b).toLowerCase()) ? groupOrder.get(String(b).toLowerCase()) : 999;
+    return orderA - orderB || a.localeCompare(b, "pt-BR");
+  });
+}
+
 function renderCategories() {
   const products = visibleProducts();
-  const cats = [...new Set(products.map(item => item.cat))];
+  const cats = getOrderedCategories(products);
   byId("categories").innerHTML = cats.map(cat => {
     const count = products.filter(item => item.cat === cat).length;
     return `
@@ -621,7 +630,7 @@ function renderProducts() {
   const wrap = byId("products");
   const template = byId("productTemplate");
   const products = visibleProducts();
-  const cats = [...new Set(products.map(item => item.cat))];
+  const cats = getOrderedCategories(products);
   wrap.innerHTML = "";
 
   if (!products.length) {

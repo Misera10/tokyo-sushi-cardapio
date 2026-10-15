@@ -51,7 +51,7 @@ for (const method of [
 ]) {
   assert.ok(db.includes(`async ${method}(`), `TokyoDb deve expor ${method}`);
 }
-assert.equal(db.includes("async deleteProduct("), false, "API morta deleteProduct não deve voltar");
+assert.ok(db.includes("async deleteProduct("), "TokyoDb deve expor deleteProduct");
 
 const sandbox = {
   MENU: [
@@ -70,5 +70,9 @@ vm.runInContext(extractFunction(app, "isPublicGroupActive"), sandbox);
 vm.runInContext(extractFunction(app, "visibleProducts"), sandbox);
 const visible = vm.runInContext("visibleProducts()", sandbox);
 assert.deepEqual(Array.from(visible, item => item.id), [1], "grupo não publicado e item sem estoque devem ficar fora do cardápio público");
+
+vm.runInContext(extractFunction(app, "getOrderedCategories"), sandbox);
+const orderedCats = vm.runInContext("getOrderedCategories(MENU)", sandbox);
+assert.deepEqual(Array.from(orderedCats), ["Combos", "Bebidas"], "ordenação deve seguir publicMenuGroups");
 
 console.log("crud-regression.test.js: OK");

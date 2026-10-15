@@ -1831,102 +1831,351 @@ function productBadges(item) {
     .map(([, label]) => `<span class="menu-chip">${label}</span>`).join("");
 }
 
+function updateProductImagePreview(url) {
+  const preview = byId("prodImagePreview");
+  if (!preview) return;
+  const safeUrl = safeImageUrl(url);
+  if (safeUrl) {
+    preview.innerHTML = `<img src="${escapeHtml(safeUrl)}" alt="Preview da imagem" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'preview-placeholder\\'>Imagem indisponível</div>';">`;
+  } else {
+    preview.innerHTML = `<div class="preview-placeholder">Sem foto</div>`;
+  }
+}
+
+function openProductModal(productIndex = null) {
+  syncCategoryDropdowns();
+  const isEdit = productIndex !== null && menu[productIndex];
+  const item = isEdit ? menu[productIndex] : null;
+
+  byId("productModalTitle").textContent = isEdit ? "Editar item do cardápio" : "Novo item no cardápio";
+  byId("prodEditId").value = isEdit ? String(item.id) : "";
+  const deleteBtn = byId("prodDeleteBtn");
+  if (deleteBtn) {
+    deleteBtn.hidden = !isEdit;
+    deleteBtn.dataset.deleteIndex = isEdit ? String(productIndex) : "";
+  }
+
+  byId("prodName").value = item?.name || "";
+  const activeDefaultGroup = menuFilters.group || menuGroups.find(g => g.active !== false)?.name || menuGroups[0]?.name || "Sem categoria";
+  byId("prodCategory").value = item?.cat || activeDefaultGroup;
+  byId("prodPrice").value = item && item.price !== "" && item.price !== undefined ? item.price : "";
+  byId("prodStrikePrice").value = item?.strikePrice || "";
+  byId("prodFromPrice").value = item?.fromPrice || "";
+  byId("prodCost").value = item?.cost || "";
+  byId("prodInternalCode").value = item?.internalCode || "";
+  byId("prodTags").value = (item?.tags || []).join(", ");
+  byId("prodDesc").value = item?.desc || "";
+  byId("prodImage").value = item?.image || "";
+  byId("prodSecondaryImages").value = (item?.secondaryImages || []).join("\r\n");
+
+  byId("prodActive").checked = item ? item.active !== false : true;
+  byId("prodHighlight").checked = Boolean(item?.highlight);
+  byId("prodBadgePromo").checked = Boolean(item?.badges?.promotion);
+  byId("prodBadgeBestSeller").checked = Boolean(item?.badges?.bestSeller);
+  byId("prodBadgeNew").checked = Boolean(item?.badges?.new);
+
+  byId("prodChannelRetirada").checked = item ? item.channels?.retirada !== false : true;
+  byId("prodChannelDelivery").checked = item ? Boolean(item.channels?.delivery) : true;
+  byId("prodChannelMesa").checked = item ? Boolean(item.channels?.mesa) : true;
+
+  byId("prodStockControlled").checked = Boolean(item?.stockControlled);
+  byId("prodStockQty").value = item?.stockQty ?? "";
+
+  updateProductImagePreview(item?.image || "");
+  byId("productModalOverlay").hidden = false;
+  window.setTimeout(() => byId("prodName").focus(), 50);
+}
+
+function closeProductModal() {
+  const overlay = byId("productModalOverlay");
+  if (overlay) overlay.hidden = true;
+  byId("productModalForm")?.reset();
+  updateProductImagePreview("");
+}
+
+async function saveProductModal(event) {
+  event.preventDefault();
+  const name = byId("prodName").value.trim();
+  if (!name) return notify("Informe o nome do item.", "error");
+
+  const priceVal = byId("prodPrice").value;
+  if (priceVal === "" || isNaN(Number(priceVal)) || Number(priceVal) < 0) return notify("Informe um preço de venda válido.", "error");
+  const price = Number(priceVal);
+
+  const cat = byId("prodCategory").value || "Sem categoria";
+  const editId = byId("prodEditId").value;
+  const isEdit = Boolean(editId);
+
+  const strikePrice = byId("prodStrikePrice").value === "" ? "" : Math.max(0, Number(byId("prodStrikePrice").value));
+  const fromPrice = byId("prodFromPrice").value === "" ? "" : Math.max(0, Number(byId("prodFromPrice").value));
+  const cost = byId("prodCost").value === "" ? "" : Math.max(0, Number(byId("prodCost").value));
+  const internalCode = byId("prodInternalCode").value.trim();
+  const desc = byId("prodDesc").value.trim();
+  const image = byId("prodImage").value.trim();
+  const secondaryImages = byId("prodSecondaryImages").value.split(/\r?\n/).map(v => v.trim()).filter(Boolean).slice(0, 4);
+  const tags = byId("prodTags").value.split(",").map(v => v.trim()).filter(Boolean).slice(0, 5);
+
+  const active = byId("prodActive").checked;
+  const highlight = byId("prodHighlight").checked;
+  const badges = {
+    promotion: byId("prodBadgePromo").checked,
+    bestSeller: byId("prodBadgeBestSeller").checked,
+    new: byId("prodBadgeNew").checked
+  };
+
+  const channels = {
+    retirada: byId("prodChannelRetirada").checked,
+    delivery: byId("prodChannelDelivery").checked,
+    mesa: byId("prodChannelMesa").checked
+  };
+
+  const stockControlled = byId("prodStockControlled").checked;
+  const stockQty = stockControlled && byId("prodStockQty").value !== "" ? Math.max(0, Number(byId("prodStockQty").value)) : "";
+
+  let targetProduct = null;
+  let targetIndex = 0;
+
+  if (isEdit) {
+    targetIndex = menu.findIndex(p => String(p.id) === String(editId));
+    if (targetIndex >= 0) {
+      targetProduct = menu[targetIndex];
+      Object.assign(targetProduct, {
+        name, cat, price, strikePrice, fromPrice, cost, internalCode, desc, image,
+        secondaryImages, tags, active, highlight, badges, channels, stockControlled, stockQty
+      });
+      targetProduct = normalizeProduct(targetProduct);
+      menu[targetIndex] = targetProduct;
+    }
+  } else {
+    targetProduct = normalizeProduct({
+      id: Date.now(),
+      name, cat, price, strikePrice, fromPrice, cost, internalCode, desc, image,
+      secondaryImages, tags, active, highlight, badges, channels, stockControlled, stockQty,
+      sortOrder: 0
+    });
+    menu.unshift(targetProduct);
+    menu.forEach((p, idx) => { p.sortOrder = idx; });
+    targetIndex = 0;
+  }
+
+  saveMenu();
+  if (targetProduct) {
+    runOnline(() => window.TokyoDb.saveProduct(targetProduct, targetIndex), "Falha ao salvar produto online.");
+  }
+  notify(`Item "${name}" salvo com sucesso!`, "success");
+  closeProductModal();
+  renderMenuEditor();
+}
+
+async function deleteProductDirect(index) {
+  const item = menu[index];
+  if (!item) return;
+  const confirmed = await askConfirm(
+    `Tem certeza que deseja excluir definitivamente o item "${item.name}"? Esta ação removerá o produto do cardápio.`,
+    { title: "Excluir item?", confirmLabel: "Excluir definitivamente" }
+  );
+  if (!confirmed) return;
+
+  menu.splice(index, 1);
+  menu.forEach((p, idx) => { p.sortOrder = idx; });
+  saveMenu();
+  if (window.TokyoDb?.enabled) {
+    runOnline(() => window.TokyoDb.deleteProduct(item.id), "Falha ao excluir produto online.");
+  }
+  notify(`Item "${item.name}" foi excluído.`, "info");
+  closeProductModal();
+  renderMenuEditor();
+}
+
+function openCategoryModal() {
+  byId("categoryModalOverlay").hidden = false;
+  cancelEditCategory();
+  renderMenuGroups();
+  window.setTimeout(() => byId("catName").focus(), 50);
+}
+
+function closeCategoryModal() {
+  byId("categoryModalOverlay").hidden = true;
+  renderMenuEditor();
+}
+
+function editCategory(index) {
+  const cat = menuGroups[index];
+  if (!cat) return;
+  byId("catEditIndex").value = String(index);
+  byId("catName").value = cat.name;
+  byId("catDescription").value = cat.description || "";
+  byId("catActive").checked = cat.active !== false;
+  byId("catSaveBtn").textContent = "Atualizar categoria";
+  byId("catCancelEditBtn").hidden = false;
+  byId("catName").focus();
+}
+
+function cancelEditCategory() {
+  byId("catEditIndex").value = "-1";
+  byId("catName").value = "";
+  byId("catDescription").value = "";
+  byId("catActive").checked = true;
+  byId("catSaveBtn").textContent = "Salvar categoria";
+  byId("catCancelEditBtn").hidden = true;
+}
+
+async function saveCategoryFromForm(event) {
+  event.preventDefault();
+  const name = byId("catName").value.trim();
+  if (!name) return notify("Informe o nome da categoria.", "error");
+
+  const description = byId("catDescription").value.trim();
+  const active = byId("catActive").checked;
+  const editIndex = Number(byId("catEditIndex").value);
+
+  if (editIndex >= 0 && menuGroups[editIndex]) {
+    const previousName = menuGroups[editIndex].name;
+    menuGroups[editIndex].name = name;
+    menuGroups[editIndex].description = description;
+    menuGroups[editIndex].active = active;
+
+    if (previousName !== name) {
+      const renamedProducts = [];
+      menu.forEach(item => {
+        if (item.cat !== previousName) return;
+        item.cat = name;
+        renamedProducts.push(item);
+      });
+      if (menuFilters.group === previousName) menuFilters.group = name;
+      saveMenu();
+      renamedProducts.forEach(item => scheduleProductSave(item));
+    }
+  } else {
+    const exists = menuGroups.some(g => g.name.toLowerCase() === name.toLowerCase());
+    if (exists) return notify("Já existe uma categoria com este nome.", "warning");
+    menuGroups.push({
+      id: `group-${Date.now()}`,
+      name,
+      description,
+      active,
+      sortOrder: menuGroups.length
+    });
+  }
+
+  menuGroups = normalizeMenuGroups(menuGroups, menu);
+  saveMenuGroups();
+  cancelEditCategory();
+  renderMenuGroups();
+  renderMenuEditor();
+  notify(`Categoria "${name}" salva com sucesso!`, "success");
+}
+
+async function deleteCategory(index) {
+  const group = menuGroups[index];
+  if (!group) return;
+  const itemsInGroup = menu.filter(p => p.cat === group.name);
+  const msg = itemsInGroup.length > 0
+    ? `A categoria "${group.name}" possui ${itemsInGroup.length} produto(s). Ao excluir a categoria, os produtos serão movidos para "Sem categoria". Deseja excluir?`
+    : `Deseja excluir a categoria "${group.name}" permanentemente?`;
+
+  const confirmed = await askConfirm(msg, { title: "Excluir categoria?", confirmLabel: "Excluir categoria" });
+  if (!confirmed) return;
+
+  const fallbackName = "Sem categoria";
+  const affectedProducts = [];
+  menu.forEach(item => {
+    if (item.cat === group.name) {
+      item.cat = fallbackName;
+      affectedProducts.push(item);
+    }
+  });
+
+  menuGroups.splice(index, 1);
+  menuGroups.forEach((g, idx) => { g.sortOrder = idx; });
+  if (menuFilters.group === group.name) menuFilters.group = "";
+
+  menuGroups = normalizeMenuGroups(menuGroups, menu);
+  saveMenu();
+  saveMenuGroups();
+  affectedProducts.forEach(item => scheduleProductSave(item));
+  notify(`Categoria "${group.name}" excluída.`, "info");
+  renderMenuGroups();
+  renderMenuEditor();
+}
+
+function syncCategoryDropdowns() {
+  const groupNames = menuGroups.map(group => group.name);
+  const groupFilter = byId("menuGroupFilter");
+  if (groupFilter) {
+    groupFilter.innerHTML = `<option value="">Todas as categorias</option>${groupNames.map(name => `<option value="${escapeHtml(name)}" ${menuFilters.group === name ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}`;
+    groupFilter.value = menuFilters.group;
+  }
+  const prodCategory = byId("prodCategory");
+  if (prodCategory) {
+    prodCategory.innerHTML = groupNames.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  }
+}
+
 function renderMenuGroups() {
-  const editor = byId("menuGroupEditor");
-  if (!editor) return;
-  editor.innerHTML = menuGroups.map((group, index) => `
-    <div class="menu-group-row">
-      <span class="menu-group-order">${index + 1}</span>
-      <label>Nome do grupo<input data-group-field="name" data-gindex="${index}" value="${escapeHtml(group.name)}"></label>
-      <label>Descrição<input data-group-field="description" data-gindex="${index}" value="${escapeHtml(group.description)}" placeholder="Opcional"></label>
-      <label class="check-line"><input type="checkbox" data-group-field="active" data-gindex="${index}" ${group.active !== false ? "checked" : ""}> Publicado</label>
-      <div class="row-actions compact-actions">
-        <button class="ghost" type="button" data-reorder-group="${index}:-1" aria-label="Mover grupo para cima">↑</button>
-        <button class="ghost" type="button" data-reorder-group="${index}:1" aria-label="Mover grupo para baixo">↓</button>
-        <button class="danger" type="button" data-remove-group="${index}">Arquivar</button>
+  const list = byId("categoryItemsList");
+  if (!list) return;
+  list.innerHTML = menuGroups.map((group, index) => {
+    const count = menu.filter(p => p.cat === group.name && !p.archived).length;
+    const isEditing = Number(byId("catEditIndex")?.value) === index;
+    return `
+      <div class="category-item-row ${isEditing ? "editing" : ""}">
+        <span class="category-order-num">${index + 1}</span>
+        <div class="category-item-info">
+          <strong>${escapeHtml(group.name)}</strong>
+          <span class="menu-chip">${count} ${count === 1 ? "item" : "itens"}</span>
+          <span class="menu-chip status-${group.active !== false ? "active" : "paused"}">${group.active !== false ? "Publicada" : "Pausada"}</span>
+          ${group.description ? `<small>${escapeHtml(group.description)}</small>` : ""}
+        </div>
+        <div class="category-item-actions">
+          <button class="ghost" type="button" data-reorder-group="${index}:-1" ${index === 0 ? "disabled" : ""} aria-label="Mover para cima">↑</button>
+          <button class="ghost" type="button" data-reorder-group="${index}:1" ${index === menuGroups.length - 1 ? "disabled" : ""} aria-label="Mover para baixo">↓</button>
+          <button class="ghost" type="button" data-edit-cat="${index}">Editar</button>
+          <button class="danger" type="button" data-delete-cat="${index}">Excluir</button>
+        </div>
       </div>
-    </div>
-  `).join("") || `<p class="editor-empty">Nenhum grupo criado. Ao adicionar um item, o grupo será criado automaticamente.</p>`;
+    `;
+  }).join("") || `<p class="editor-empty">Nenhuma categoria criada.</p>`;
 }
 
 function renderMenuEditor() {
-  const groupFilter = byId("menuGroupFilter");
-  const groupNames = menuGroups.map(group => group.name);
-  if (groupFilter) {
-    groupFilter.innerHTML = `<option value="">Todos os grupos</option>${groupNames.map(name => `<option value="${escapeHtml(name)}" ${menuFilters.group === name ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}`;
-    groupFilter.value = menuFilters.group;
-  }
+  syncCategoryDropdowns();
   const entries = menuProductsForEditor();
-  byId("menuEditor").innerHTML = entries.map(({ item, index }) => {
-    const editing = String(editingProductId) === String(item.id);
+  const editor = byId("menuEditor");
+  if (!editor) return;
+  editor.innerHTML = entries.map(({ item, index }) => {
     const imageUrl = safeImageUrl(item.image);
-    const linked = complementGroups.filter(group => (group.linkedProductIds || []).map(String).includes(String(item.id))).map(group => group.name);
     const channels = [item.channels?.retirada !== false ? "Retirada" : "", item.channels?.delivery ? "Delivery" : "", item.channels?.mesa ? "Mesa" : ""].filter(Boolean);
-    const statusLabel = item.archived ? "Arquivado" : item.active === false ? "Pausado" : "Publicado";
-    const groupOptions = menuGroups.map(group => `<option value="${escapeHtml(group.name)}" ${item.cat === group.name ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("");
+    const isPaused = item.active === false || item.archived;
     return `
-      <article class="product-edit ${editing ? "editing" : ""} ${item.archived ? "is-archived" : ""}">
-        <div class="product-edit-summary">
-          ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async">` : `<div class="product-placeholder" aria-hidden="true">TS</div>`}
-          <div class="product-edit-copy">
-            <div class="product-edit-title"><strong>${escapeHtml(item.name)}</strong><span>${money(item.price)}</span></div>
-            <p>${escapeHtml(item.desc || "Sem descrição cadastrada.")}</p>
-            <div class="menu-chips"><span class="menu-chip status-${item.archived ? "archived" : item.active === false ? "paused" : "active"}">${statusLabel}</span><span class="menu-chip">${escapeHtml(item.cat)}</span>${productBadges(item)}${item.highlight ? `<span class="menu-chip highlight">Destaque</span>` : ""}</div>
-            <small>${escapeHtml(channels.join(" · ") || "Nenhum canal publicado")} · ${(item.activeDays || DEFAULT_ACTIVE_DAYS).length}/7 dias${item.stockControlled ? ` · estoque ${item.stockQty ?? 0}` : ""}</small>
+      <article class="product-card-modern ${isPaused ? "is-paused" : ""}">
+        ${imageUrl ? `<img class="product-thumb" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy">` : `<div class="product-thumb-placeholder">TS</div>`}
+        <div class="product-main-info">
+          <div class="product-header-line">
+            <strong>${escapeHtml(item.name)}</strong>
+            <div class="product-prices">
+              ${item.strikePrice ? `<span class="product-strike-price">${money(item.strikePrice)}</span>` : ""}
+              <span class="product-sale-price">${money(item.price)}</span>
+            </div>
           </div>
-          <div class="product-edit-actions">
-            <button class="ghost" type="button" data-edit-product="${index}">${editing ? "Fechar edição" : "Editar"}</button>
-            ${item.archived ? "" : `<button class="${item.active === false ? "success" : "warning"}" type="button" data-toggle-product="${index}" aria-label="${item.active === false ? "Reativar" : "Pausar"} ${escapeHtml(item.name)}">${item.active === false ? "Ativar" : "Pausar"}</button>`}
-            <button class="ghost" type="button" data-duplicate-product="${index}">Duplicar</button>
-            <button class="ghost" type="button" data-product-complements="${index}">Adicionais</button>
-            ${item.archived ? `<button class="success" type="button" data-restore-product="${index}">Restaurar</button>` : `<button class="danger" type="button" data-archive-product="${index}">Arquivar</button>`}
+          <p class="product-desc-text">${escapeHtml(item.desc || "Sem descrição.")}</p>
+          <div class="product-badges-row">
+            <span class="product-status-chip ${item.active !== false ? "active" : "paused"}">${item.active !== false ? "Publicado" : "Pausado"}</span>
+            <span class="product-category-chip">${escapeHtml(item.cat || "Sem categoria")}</span>
+            ${item.badges?.promotion ? `<span class="product-promo-chip">🔥 Promoção</span>` : ""}
+            ${item.highlight ? `<span class="product-promo-chip">⭐ Destaque</span>` : ""}
+            ${item.badges?.bestSeller ? `<span class="product-promo-chip">👑 Mais vendido</span>` : ""}
+            ${item.badges?.new ? `<span class="product-promo-chip">✨ Novidade</span>` : ""}
           </div>
+          <small class="product-meta-text">${escapeHtml(channels.join(" · ") || "Nenhum canal publicado")} · ${(item.activeDays || DEFAULT_ACTIVE_DAYS).length}/7 dias${item.stockControlled ? ` · Estoque: ${item.stockQty ?? 0}` : ""}</small>
         </div>
-        ${editing ? `
-          <div class="product-edit-form">
-            <div class="product-form-grid">
-              <label>Nome<input data-menu-field="name" data-index="${index}" value="${escapeHtml(item.name)}" autocomplete="off"></label>
-              <label>Grupo<select data-menu-field="cat" data-index="${index}">${groupOptions}</select></label>
-              <label>Preço<input data-menu-field="price" data-index="${index}" type="number" min="0" step="0.01" value="${item.price}"></label>
-              <label>Preço a partir de<input data-menu-field="fromPrice" data-index="${index}" type="number" min="0" step="0.01" value="${item.fromPrice}"></label>
-              <label>Preço riscado<input data-menu-field="strikePrice" data-index="${index}" type="number" min="0" step="0.01" value="${item.strikePrice}"></label>
-              <label>Código interno<input data-menu-field="internalCode" data-index="${index}" value="${escapeHtml(item.internalCode)}" placeholder="Opcional"></label>
-              <label>Custo<input data-menu-field="cost" data-index="${index}" type="number" min="0" step="0.01" value="${item.cost}"></label>
-              <label class="wide-field">Descrição<textarea data-menu-field="desc" data-index="${index}" rows="2">${escapeHtml(item.desc)}</textarea></label>
-              <label class="wide-field">Imagem principal<input data-menu-field="image" data-index="${index}" value="${escapeHtml(item.image)}" placeholder="URL ou caminho local"></label>
-              <label class="wide-field">Imagens secundárias <small>(uma por linha, até 4)</small><textarea data-menu-field="secondaryImages" data-index="${index}" rows="2">${escapeHtml((item.secondaryImages || []).join("\n"))}</textarea></label>
-            </div>
-            <div class="product-editor-section">
-              <strong>Publicação</strong>
-              <div class="editor-checks">
-                <label class="check-line"><input type="checkbox" data-menu-meta="active" data-index="${index}" ${item.active !== false ? "checked" : ""}> Publicado</label>
-                <label class="check-line"><input type="checkbox" data-menu-meta="highlight" data-index="${index}" ${item.highlight ? "checked" : ""}> Destaque</label>
-                <label class="check-line"><input type="checkbox" data-menu-meta="channels:retirada" data-index="${index}" ${item.channels?.retirada !== false ? "checked" : ""}> Retirada</label>
-                <label class="check-line"><input type="checkbox" data-menu-meta="channels:delivery" data-index="${index}" ${item.channels?.delivery ? "checked" : ""}> Delivery</label>
-                <label class="check-line"><input type="checkbox" data-menu-meta="channels:mesa" data-index="${index}" ${item.channels?.mesa ? "checked" : ""}> Mesa</label>
-              </div>
-            </div>
-            <div class="product-editor-section">
-              <strong>Dias ativos</strong>
-              <div class="editor-checks days-checks">${MENU_DAY_LABELS.map((label, day) => `<label class="check-line"><input type="checkbox" data-menu-meta="activeDays:${day}" data-index="${index}" ${(item.activeDays || DEFAULT_ACTIVE_DAYS).includes(day) ? "checked" : ""}> ${label}</label>`).join("")}</div>
-            </div>
-            <div class="product-editor-section">
-              <strong>Etiquetas</strong>
-              <div class="editor-checks">
-                <label class="check-line"><input type="checkbox" data-menu-meta="badges:promotion" data-index="${index}" ${item.badges?.promotion ? "checked" : ""}> Promoção</label>
-                <label class="check-line"><input type="checkbox" data-menu-meta="badges:bestSeller" data-index="${index}" ${item.badges?.bestSeller ? "checked" : ""}> Mais vendido</label>
-                <label class="check-line"><input type="checkbox" data-menu-meta="badges:new" data-index="${index}" ${item.badges?.new ? "checked" : ""}> Novidade</label>
-              </div>
-              <label>Tags internas <input data-menu-field="tags" data-index="${index}" value="${escapeHtml((item.tags || []).join(", "))}" placeholder="ex.: salmão, combo, promoção"></label>
-            </div>
-            <div class="product-editor-section stock-section">
-              <strong>Estoque rápido</strong>
-              <label class="check-line"><input type="checkbox" data-menu-meta="stockControlled" data-index="${index}" ${item.stockControlled ? "checked" : ""}> Controlar estoque</label>
-              <label>Quantidade<input data-menu-field="stockQty" data-index="${index}" type="number" min="0" step="1" value="${item.stockQty ?? ""}" placeholder="Sem limite"></label>
-            </div>
-          </div>
-        ` : ""}
-        <p class="product-links">Adicionais: ${escapeHtml(linked.join(", ") || "nenhum vinculado")}</p>
+        <div class="product-actions-modern">
+          <button class="ghost" type="button" data-open-edit-product="${index}">Editar</button>
+          <button class="${item.active === false ? "success" : "warning"}" type="button" data-toggle-product="${index}">${item.active === false ? "Ativar" : "Pausar"}</button>
+          <button class="ghost" type="button" data-duplicate-product="${index}">Duplicar</button>
+          <button class="ghost" type="button" data-product-complements="${index}">Adicionais</button>
+          <button class="danger" type="button" data-delete-product-direct="${index}">Excluir</button>
+        </div>
       </article>
     `;
   }).join("") || `<div class="editor-empty"><strong>Nenhum item encontrado.</strong><span>Limpe os filtros ou crie um novo item para começar.</span></div>`;
@@ -3101,11 +3350,12 @@ document.body.addEventListener("click", async event => {
       }
     }
   }
-  if (target.dataset.editProduct) {
-    const item = menu[Number(target.dataset.editProduct)];
-    editingProductId = String(editingProductId) === String(item?.id) ? null : item?.id;
-    renderMenuEditor();
-    if (editingProductId) document.querySelector(`[data-menu-field="name"][data-index="${target.dataset.editProduct}"]`)?.focus();
+  if (target.dataset.openEditProduct !== undefined || target.dataset.editProduct !== undefined) {
+    const idx = Number(target.dataset.openEditProduct ?? target.dataset.editProduct);
+    openProductModal(idx);
+  }
+  if (target.dataset.deleteProductDirect !== undefined) {
+    deleteProductDirect(Number(target.dataset.deleteProductDirect));
   }
   if (target.dataset.duplicateProduct) {
     const index = Number(target.dataset.duplicateProduct);
@@ -3273,18 +3523,14 @@ document.body.addEventListener("click", async event => {
       renderMenuEditor();
     }
   }
+  if (target.dataset.editCat !== undefined) {
+    editCategory(Number(target.dataset.editCat));
+  }
+  if (target.dataset.deleteCat !== undefined) {
+    deleteCategory(Number(target.dataset.deleteCat));
+  }
   if (target.dataset.removeGroup) {
-    const index = Number(target.dataset.removeGroup);
-    const group = menuGroups[index];
-    if (!group || !await askConfirm(`Os itens do grupo "${group.name}" serão movidos para Sem categoria.`, { title: "Arquivar grupo?", confirmLabel: "Arquivar grupo" })) return;
-    const fallbackName = "Sem categoria";
-    menu.forEach(item => { if (item.cat === group.name) item.cat = fallbackName; });
-    group.active = false;
-    menuGroups = normalizeMenuGroups(menuGroups, menu);
-    saveMenu();
-    saveMenuGroups();
-    runOnline(() => Promise.all(menu.map((item, itemIndex) => window.TokyoDb.saveProduct(item, itemIndex))), "Falha ao atualizar os itens do grupo online.");
-    renderMenuEditor();
+    deleteCategory(Number(target.dataset.removeGroup));
   }
   if (target.dataset.editCustomer) openCustomerEditor(decodeURIComponent(target.dataset.editCustomer));
   if (target.dataset.removeCustomer) {
@@ -3501,38 +3747,31 @@ document.body.addEventListener("submit", async event => {
   }
 });
 
-byId("addProduct").addEventListener("click", () => {
-  const item = normalizeProduct({
-    id: Date.now(),
-    cat: menuGroups.find(group => group.active !== false)?.name || "Nova categoria",
-    name: "Novo item",
-    desc: "",
-    price: 0,
-    image: "",
-    active: true,
-    sortOrder: 0
-  });
-  if (!menuGroups.some(group => group.name === item.cat)) {
-    menuGroups.push({ id: `group-${Date.now()}`, name: item.cat, sortOrder: menuGroups.length, active: true, description: "" });
-    saveMenuGroups();
-  }
-  menu.unshift(item);
-  menu.forEach((product, index) => { product.sortOrder = index; });
-  editingProductId = item.id;
-  saveMenu();
-  runOnline(() => window.TokyoDb.saveProduct(menu[0], 0), "Falha ao criar produto online.");
-  renderMenuEditor();
+byId("addProduct")?.addEventListener("click", () => {
+  openProductModal(null);
 });
 
-byId("addMenuGroup").addEventListener("click", () => {
-  const group = { id: `group-${Date.now()}`, name: "Novo grupo", sortOrder: menuGroups.length, active: true, description: "" };
-  menuGroups.push(group);
-  saveMenuGroups();
-  const manager = document.querySelector(".menu-group-manager");
-  if (manager) manager.open = true;
-  renderMenuEditor();
-  window.setTimeout(() => document.querySelector(`[data-group-field="name"][data-gindex="${menuGroups.length - 1}"]`)?.select(), 0);
+byId("openCategoryManagerBtn")?.addEventListener("click", () => {
+  openCategoryModal();
 });
+
+byId("prodQuickAddGroup")?.addEventListener("click", () => {
+  openCategoryModal();
+});
+
+byId("closeProductModal")?.addEventListener("click", closeProductModal);
+byId("prodCancelBtn")?.addEventListener("click", closeProductModal);
+byId("productModalForm")?.addEventListener("submit", saveProductModal);
+byId("prodDeleteBtn")?.addEventListener("click", () => {
+  const idx = Number(byId("prodDeleteBtn").dataset.deleteIndex);
+  if (!isNaN(idx)) deleteProductDirect(idx);
+});
+byId("prodImage")?.addEventListener("input", e => updateProductImagePreview(e.target.value));
+
+byId("closeCategoryModal")?.addEventListener("click", closeCategoryModal);
+byId("closeCategoryModalBottom")?.addEventListener("click", closeCategoryModal);
+byId("categoryForm")?.addEventListener("submit", saveCategoryFromForm);
+byId("catCancelEditBtn")?.addEventListener("click", cancelEditCategory);
 
 byId("resetMenu").addEventListener("click", async () => {
   if (!await askConfirm("Os produtos atuais serão substituídos pelo cardápio original importado.", { title: "Restaurar cardápio?", confirmLabel: "Restaurar" })) return;
