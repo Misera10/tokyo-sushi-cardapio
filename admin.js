@@ -1959,6 +1959,11 @@ async function saveProductModal(event) {
   }
 
   saveMenu();
+  const targetGroup = menuGroups.find(g => g.name === cat);
+  if (targetGroup && targetGroup.active === false && active) {
+    targetGroup.active = true;
+    saveMenuGroups();
+  }
   if (targetProduct) {
     runOnline(() => window.TokyoDb.saveProduct(targetProduct, targetIndex), "Falha ao salvar produto online.");
   }
@@ -2108,7 +2113,10 @@ function syncCategoryDropdowns() {
   }
   const prodCategory = byId("prodCategory");
   if (prodCategory) {
-    prodCategory.innerHTML = groupNames.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+    prodCategory.innerHTML = menuGroups.map(group => {
+      const pausedSuffix = group.active === false ? " (Pausada)" : "";
+      return `<option value="${escapeHtml(group.name)}">${escapeHtml(group.name)}${pausedSuffix}</option>`;
+    }).join("");
   }
 }
 

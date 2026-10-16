@@ -677,14 +677,21 @@ function renderProducts() {
         imagePriority += 1;
       }
       const labels = [cleanText(item.cat)];
-      if (item.badges?.promotion) labels.push("Promoção");
-      if (item.badges?.bestSeller) labels.push("Mais vendido");
-      if (item.badges?.new) labels.push("Novidade");
+      if (item.badges?.promotion) labels.push("🔥 Promoção");
+      if (item.badges?.bestSeller) labels.push("👑 Mais vendido");
+      if (item.badges?.new) labels.push("✨ Novidade");
       node.querySelector(".tag").textContent = labels.join(" · ");
       if (item.highlight) productNode.classList.add("is-highlighted");
       node.querySelector("h3").textContent = cleanText(item.name);
       node.querySelector(".desc").textContent = cleanText(item.desc);
-      node.querySelector(".price").textContent = money(item.price);
+      const priceEl = node.querySelector(".price");
+      if (item.strikePrice && Number(item.strikePrice) > Number(item.price)) {
+        priceEl.innerHTML = `<span class="price-from">De ${money(item.strikePrice)}</span><span class="price-to">Por ${money(item.price)}</span>`;
+      } else if (item.fromPrice && Number(item.fromPrice) > 0) {
+        priceEl.innerHTML = `<span class="price-from-label">A partir de</span> ${money(item.fromPrice)}`;
+      } else {
+        priceEl.textContent = money(item.price);
+      }
       const addButton = node.querySelector(".add");
       addButton.dataset.id = item.id;
       addButton.disabled = !isStoreOpen();
@@ -865,9 +872,12 @@ function openComplementModal(productId) {
   pendingOptions = {};
   const modal = byId("complementModal");
   byId("modalProductName").textContent = cleanText(product.name);
-  byId("modalProductDesc").textContent = cleanText(product.desc);
-  byId("modalProductPrice").textContent = money(product.price);
-  const imageUrl = safeImageUrl(product.image);
+  const modalPriceEl = byId("modalProductPrice");
+  if (product.strikePrice && Number(product.strikePrice) > Number(product.price)) {
+    modalPriceEl.innerHTML = `<span class="price-from">De ${money(product.strikePrice)}</span> <span class="price-to">Por ${money(product.price)}</span>`;
+  } else {
+    modalPriceEl.textContent = money(product.price);
+  }
   byId("modalProductImage").style.backgroundImage = imageUrl ? `url("${imageUrl}")` : "";
   byId("modalComplements").innerHTML = groups.map(group => {
     const activeItems = (group.items || []).filter(item => item.active !== false);
