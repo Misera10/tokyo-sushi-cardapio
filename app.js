@@ -1158,14 +1158,14 @@ async function init() {
   });
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw-v20260927.js").then(reg => {
+    navigator.serviceWorker.register("sw-v20261016.js").then(reg => {
       reg.update().catch(() => {});
     }).catch(() => {});
   }
   if ("caches" in window) {
     caches.keys().then(keys => {
       keys.forEach(k => {
-        if (k !== "tokyo-sushi-v20260927-audit-v3") caches.delete(k);
+        if (k !== "tokyo-sushi-v20261016-pdv-v1") caches.delete(k);
       });
     }).catch(() => {});
   }

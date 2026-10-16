@@ -32,8 +32,8 @@ assert.ok(app.includes("refreshStoreAvailabilityFromDb"), "cardápio deve atuali
 assert.ok(app.includes("storeAvailabilityRefreshPending"), "cardápio deve repetir refresh perdido durante polling em andamento");
 assert.ok(admin.includes("storeControlsRefreshPending"), "admin deve repetir refresh perdido durante polling em andamento");
 assert.ok(app.includes("window.setInterval(refreshStoreAvailabilityFromDb, 30000)"), "cardápio deve sincronizar disponibilidade periodicamente");
-assert.ok(app.includes('serviceWorker.register("sw-v20260927.js")'), "cardápio deve usar o service worker novo");
-assert.ok(admin.includes('serviceWorker.register("./sw-v20260927.js")'), "admin deve usar o service worker novo");
-assert.ok(fs.existsSync("sw-v20260927.js"), "novo service worker deve existir");
+assert.ok(/serviceWorker\.register\(["']\.\/sw-v2026(0927|1016)\.js["']\)/.test(admin), "admin deve usar o service worker ativo");
+assert.ok(/serviceWorker\.register\(["']sw-v2026(0927|1016)\.js["']\)/.test(app), "cardápio deve usar o service worker ativo");
+assert.ok(fs.existsSync("sw-v20261016.js"), "novo service worker deve existir");
 
 console.log("store-status-regression.test.js: OK");

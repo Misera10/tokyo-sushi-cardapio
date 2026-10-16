@@ -205,7 +205,7 @@ async function showOrderNotification(order) {
 
 function setupAdminPwa() {
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw-v20260927.js")
+    navigator.serviceWorker.register("./sw-v20261016.js")
       .then(registration => { adminPushRegistration = registration; registration.update().catch(() => {}); })
       .catch(() => {});
   }
@@ -527,6 +527,7 @@ let hiddenCustomerKeys = JSON.parse(localStorage.getItem("tokyoHiddenCustomers")
 let pdvCart = [];
 let pdvPendingOptions = {};
 let pdvSelectedProductId = "";
+let pdvSelectedCategory = "all";
 let pdvAppliedCoupon = null;
 let pdvCouponMessage = "";
 let pdvAppliedAdjustments = { discountType: "none", discountValue: 0, surchargeType: "none", surchargeValue: 0 };
@@ -1970,6 +1971,7 @@ async function saveProductModal(event) {
   notify(`Item "${name}" salvo com sucesso!`, "success");
   closeProductModal();
   renderMenuEditor();
+  renderPdv();
 }
 
 async function deleteProductDirect(index) {
@@ -1990,6 +1992,7 @@ async function deleteProductDirect(index) {
   notify(`Item "${item.name}" foi excluído.`, "info");
   closeProductModal();
   renderMenuEditor();
+  renderPdv();
 }
 
 function openCategoryModal() {
@@ -2002,6 +2005,7 @@ function openCategoryModal() {
 function closeCategoryModal() {
   byId("categoryModalOverlay").hidden = true;
   renderMenuEditor();
+  renderPdv();
 }
 
 function editCategory(index) {
@@ -2068,6 +2072,7 @@ async function saveCategoryFromForm(event) {
   cancelEditCategory();
   renderMenuGroups();
   renderMenuEditor();
+  renderPdv();
   notify(`Categoria "${name}" salva com sucesso!`, "success");
 }
 
@@ -2102,6 +2107,7 @@ async function deleteCategory(index) {
   notify(`Categoria "${group.name}" excluída.`, "info");
   renderMenuGroups();
   renderMenuEditor();
+  renderPdv();
 }
 
 function syncCategoryDropdowns() {
@@ -2416,29 +2422,117 @@ function renderPdvComplements() {
   ` : "";
 }
 
+function isPdvProductPromo(item) {
+  return Boolean(item.badges?.promotion) ||
+    (item.strikePrice && Number(item.strikePrice) > Number(item.price)) ||
+    String(item.cat || "").toLowerCase().includes("promo");
+}
+
 function renderPdv() {
   const productSelect = byId("pdvProduct");
-  const selectedProductId = pdvSelectedProductId || productSelect.value || menu.find(item => item.active !== false)?.id || "";
-  const activeProducts = menu.filter(item => item.active !== false);
+  const activeProducts = menu.filter(item => item.active !== false && !item.archived);
+  const promoProducts = activeProducts.filter(isPdvProductPromo);
+
+  const categoryNames = [];
+  menuGroups.forEach(g => {
+    if (g.active !== false && activeProducts.some(p => p.cat === g.name)) {
+      if (!categoryNames.includes(g.name)) categoryNames.push(g.name);
+    }
+  });
+  activeProducts.forEach(p => {
+    const cat = p.cat || "Sem categoria";
+    if (!categoryNames.includes(cat)) categoryNames.push(cat);
+  });
+
+  const chipsContainer = byId("pdvCategoryChips");
+  if (chipsContainer) {
+    const chips = [];
+    chips.push(`
+      <button type="button" class="pdv-chip${pdvSelectedCategory === "all" ? " is-active" : ""}" data-pdv-category="all">
+        <span>Todos</span>
+        <span class="pdv-chip-count">${activeProducts.length}</span>
+      </button>
+    `);
+    if (promoProducts.length > 0) {
+      chips.push(`
+        <button type="button" class="pdv-chip is-promo${pdvSelectedCategory === "promo" ? " is-active" : ""}" data-pdv-category="promo">
+          <span>🔥 Promoções</span>
+          <span class="pdv-chip-count">${promoProducts.length}</span>
+        </button>
+      `);
+    }
+    categoryNames.forEach(catName => {
+      const count = activeProducts.filter(p => (p.cat || "Sem categoria") === catName).length;
+      const isPromoCat = catName.toLowerCase().includes("promo");
+      const isActive = pdvSelectedCategory === catName;
+      chips.push(`
+        <button type="button" class="pdv-chip${isPromoCat ? " is-promo" : ""}${isActive ? " is-active" : ""}" data-pdv-category="${escapeHtml(catName)}">
+          <span>${escapeHtml(catName)}</span>
+          <span class="pdv-chip-count">${count}</span>
+        </button>
+      `);
+    });
+    chipsContainer.innerHTML = chips.join("");
+  }
+
+  let categoryFiltered = activeProducts;
+  if (pdvSelectedCategory === "promo") {
+    categoryFiltered = promoProducts;
+  } else if (pdvSelectedCategory !== "all") {
+    categoryFiltered = activeProducts.filter(p => (p.cat || "Sem categoria").toLowerCase() === pdvSelectedCategory.toLowerCase());
+  }
+
   const search = String(byId("pdvProductSearch")?.value || "").trim().toLocaleLowerCase("pt-BR");
-  const visibleProducts = activeProducts.filter(item => !search || [item.name, item.group, item.description].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR").includes(search));
-  productSelect.innerHTML = activeProducts.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${pdvProductComplements(item.id).length ? " · adicionais" : ""} - ${money(item.price)}</option>`).join("");
-  productSelect.value = String(activeProducts.some(item => String(item.id) === String(selectedProductId)) ? selectedProductId : activeProducts[0]?.id || "");
-  pdvSelectedProductId = productSelect.value;
+  const visibleProducts = categoryFiltered.filter(item => {
+    if (!search) return true;
+    const haystack = [item.name, item.cat, item.desc, item.internalCode].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+    return haystack.includes(search);
+  });
+
+  if (productSelect) {
+    const selectedProductId = pdvSelectedProductId || productSelect.value || visibleProducts[0]?.id || activeProducts[0]?.id || "";
+    productSelect.innerHTML = activeProducts.map(item => {
+      const isPromo = isPdvProductPromo(item);
+      const hasComplements = pdvProductComplements(item.id).length > 0;
+      return `<option value="${escapeHtml(item.id)}">${isPromo ? "🔥 " : ""}${escapeHtml(item.name)}${hasComplements ? " · adicionais" : ""} - ${money(item.price)}</option>`;
+    }).join("");
+    if (activeProducts.some(item => String(item.id) === String(selectedProductId))) {
+      productSelect.value = String(selectedProductId);
+    } else if (visibleProducts.length) {
+      productSelect.value = String(visibleProducts[0].id);
+    }
+    pdvSelectedProductId = productSelect.value;
+  }
+
   byId("pdvProductList").innerHTML = visibleProducts.length ? visibleProducts.map(item => {
     const hasComplements = pdvProductComplements(item.id).length > 0;
     const selected = String(item.id) === String(pdvSelectedProductId);
+    const isPromo = isPdvProductPromo(item);
+    const isDiscounted = item.strikePrice && Number(item.strikePrice) > Number(item.price);
+    const priceDisplay = isDiscounted
+      ? `<div class="pdv-price-block"><span class="pdv-strike-price">De ${money(item.strikePrice)}</span><b class="pdv-promo-price">Por ${money(item.price)}</b></div>`
+      : `<b>${money(item.price)}</b>`;
+
     return `
-      <article class="pdv-product-row${selected ? " is-selected" : ""}">
+      <article class="pdv-product-row${selected ? " is-selected" : ""}${isPromo ? " is-promo-row" : ""}">
         <button class="pdv-product-info" data-pdv-select-product="${escapeHtml(item.id)}" type="button" aria-pressed="${selected}">
-          <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.group || "Cardápio")}${hasComplements ? " · adicionais" : ""}</small></span>
-          <b>${money(item.price)}</b>
+          <span>
+            <strong>${escapeHtml(item.name)}</strong>
+            <span class="pdv-meta">
+              <small class="pdv-meta-cat">${escapeHtml(item.cat || "Cardápio")}</small>
+              ${isPromo ? `<span class="pdv-badge promo">🔥 Promoção</span>` : ""}
+              ${item.highlight ? `<span class="pdv-badge highlight">⭐ Destaque</span>` : ""}
+              ${hasComplements ? `<span class="pdv-badge complements">· adicionais</span>` : ""}
+            </span>
+          </span>
+          ${priceDisplay}
         </button>
         <input class="pdv-product-qty" data-pdv-quick-qty="${escapeHtml(item.id)}" type="number" min="1" value="1" inputmode="numeric" aria-label="Quantidade de ${escapeHtml(item.name)}">
         <button class="primary pdv-product-add" data-pdv-quick-add="${escapeHtml(item.id)}" type="button">Adicionar</button>
       </article>
     `;
-  }).join("") : `<p class="pdv-product-empty">Nenhum item encontrado. Tente outro nome.</p>`;
+  }).join("") : `<p class="pdv-product-empty">Nenhum item encontrado${search ? ` para "${escapeHtml(search)}"` : ""}${pdvSelectedCategory !== "all" ? ` nesta categoria` : ""}. Tente outro filtro ou nome.</p>`;
+
   renderPdvCustomerSuggestions();
   byId("pdvCart").innerHTML = `
     <div class="pdv-cart-head"><h2>Pedido atual</h2><button class="ghost" data-clear-pdv="true" type="button" ${pdvCart.length ? "" : "disabled"}>Limpar</button></div>
@@ -3035,6 +3129,11 @@ document.querySelector(".tabs").addEventListener("click", event => {
   document.querySelectorAll(".panel").forEach(panel => panel.classList.remove("active"));
   byId(`${button.dataset.tab}Panel`).classList.add("active");
   if (button.dataset.tab === "settings") renderOperationSettings();
+  if (button.dataset.tab === "pdv") { renderPdv(); renderPdvFlow(); }
+  if (button.dataset.tab === "kds") renderKds();
+  if (button.dataset.tab === "orders") renderOrders();
+  if (button.dataset.tab === "menu") renderMenuEditor();
+  if (button.dataset.tab === "cash") renderCash();
 });
 
 document.body.addEventListener("input", event => {
@@ -3171,6 +3270,7 @@ document.body.addEventListener("change", async event => {
     saveMenu();
     scheduleProductSave(Number(event.target.dataset.index));
     renderMenuEditor();
+    renderPdv();
   }
   if (event.target.dataset.groupField === "active") {
     const group = menuGroups[Number(event.target.dataset.gindex)];
@@ -3178,6 +3278,7 @@ document.body.addEventListener("change", async event => {
     group.active = event.target.checked;
     saveMenuGroups();
     renderMenuEditor();
+    renderPdv();
   }
   if (event.target.dataset.linkProduct) {
     const [groupIndex, productId] = event.target.dataset.linkProduct.split(":");
@@ -3259,6 +3360,12 @@ document.body.addEventListener("click", async event => {
     document.querySelectorAll("[data-schedule-close]").forEach(input => { if (input.dataset.scheduleClose !== String(sourceDay)) input.value = sourceClose; });
     const sourceLabel = document.querySelector(`[data-schedule-row="${sourceDay}"] .schedule-day span`)?.textContent || "Este dia";
     notify(`Horários de ${sourceLabel.toLowerCase()} copiados para os outros dias. Clique em “Salvar configurações” para confirmar.`, "success");
+    return;
+  }
+  const categoryBtn = target.closest("[data-pdv-category]");
+  if (categoryBtn) {
+    pdvSelectedCategory = categoryBtn.dataset.pdvCategory || "all";
+    renderPdv();
     return;
   }
   if (target.dataset.removePdv) {
@@ -3374,6 +3481,7 @@ document.body.addEventListener("click", async event => {
       saveMenu();
       runOnline(() => window.TokyoDb.saveProduct(copy, index + 1), "Falha ao duplicar produto online.");
       renderMenuEditor();
+      renderPdv();
     }
   }
   if (target.dataset.productComplements) {
@@ -3391,6 +3499,7 @@ document.body.addEventListener("click", async event => {
       saveMenu();
       runOnline(() => Promise.all([window.TokyoDb.saveProduct(menu[index], index), window.TokyoDb.saveProduct(menu[nextIndex], nextIndex)]), "Falha ao reordenar produto online.");
       renderMenuEditor();
+      renderPdv();
     }
   }
   if (target.dataset.toggleProduct) {
@@ -3402,6 +3511,7 @@ document.body.addEventListener("click", async event => {
     runOnline(() => window.TokyoDb.saveProduct(item, index), `Falha ao ${item.active ? "reativar" : "pausar"} produto online.`);
     notify(`${item.name} foi ${item.active ? "reativado" : "pausado"} no cardápio.`, "success");
     renderMenuEditor();
+    renderPdv();
   }
   if (target.dataset.archiveProduct) {
     const index = Number(target.dataset.archiveProduct);
@@ -3413,6 +3523,7 @@ document.body.addEventListener("click", async event => {
     saveMenu();
     runOnline(() => window.TokyoDb.saveProduct(item, index), "Falha ao arquivar produto online.");
     renderMenuEditor();
+    renderPdv();
   }
   if (target.dataset.restoreProduct) {
     const index = Number(target.dataset.restoreProduct);
@@ -3424,6 +3535,7 @@ document.body.addEventListener("click", async event => {
     saveMenu();
     runOnline(() => window.TokyoDb.saveProduct(item, index), "Falha ao restaurar produto online.");
     renderMenuEditor();
+    renderPdv();
   }
   if (target.dataset.editPromo) {
     const promoId = String(target.dataset.editPromo);

@@ -10,6 +10,19 @@ window.TOKYO_DATA = {
   },
   "menu": [
     {
+      "id": 1792108382601,
+      "cat": "PROMOÇÃO RELAMPAGO",
+      "name": "PROMOÇÃO TEMAKI HOT",
+      "desc": "",
+      "price": 30.0,
+      "strikePrice": 45.0,
+      "image": "",
+      "active": true,
+      "highlight": true,
+      "badges": { "new": true, "promotion": true, "bestSeller": false },
+      "channels": { "mesa": true, "delivery": true, "retirada": true }
+    },
+    {
       "id": 5141360,
       "cat": "Combos",
       "name": "Combo Tokyo Solo",
